@@ -44,12 +44,29 @@ export default function LobbyScreen({ navigation }: any) {
   },
 )
   
-  // Auto fetch lobbies
   // ✅ Correct useEffect for auto-fetching lobbies (without logging messages)
-useEffect(() => {
-  if (!ws) return;
-  ws.send(JSON.stringify({ type: "getLobbies" }));
-}, []); // 🔥 Runs only once  
+  useEffect(() => {
+    if (!ws) return;
+  
+    const handleMessage = (event: MessageEvent) => {
+      const data = JSON.parse(event.data);
+      
+      if (data.type === "lobbies" || data.type === "updateLobbies") {
+        console.log("📢 Received Updated Lobby List:", data.lobbies);
+        setLobbies(data.lobbies);
+      }
+    };
+  
+    ws.addEventListener("message", handleMessage);
+    
+    // Fetch lobbies on mount
+    ws.send(JSON.stringify({ type: "getLobbies" }));
+  
+    return () => {
+      ws.removeEventListener("message", handleMessage);
+    };
+  }, [ws]); // ✅ Runs every time WebSocket changes
+   
 
 // ✅ NEW: Separate useEffect to track messages state changes
 useEffect(() => {
@@ -70,6 +87,11 @@ useEffect(() => {
     }
 
     if (data.type === "message" && data.lobbyId === selectedLobbyRef.current) {
+      if (!data.message) {
+        console.warn("⚠️ Received a message event with no message data!");
+        return;
+      }
+    
       console.log("📨 New Chat Message:", data.message);
     
       setMessages((prevMessages) => [
@@ -82,7 +104,7 @@ useEffect(() => {
           senderColor: getUsernameColor(data.message.sender),
           isCurrentUser: data.message.sender === auth.currentUser?.displayName, // Check if it's the current user
         },
-      ]);     
+      ]);    
 
       // ✅ Auto-scroll to the latest message
       setTimeout(() => {
@@ -280,17 +302,23 @@ useEffect(() => {
   
               {/* ✅ Input & Buttons Stay at Bottom */}
               <View style={{ paddingBottom: 10 }}>
-                <TextInput
-                  style={styles.chatInput}
-                  placeholder="Type a message..."
-                  value={chatMessage}
-                  onChangeText={setChatMessage}
-                  onSubmitEditing={sendMessage}
-                />
-                <Button title="Send" onPress={sendMessage} />
-                <Button title="Start Game Round" onPress={startGameRound} color="green" />
-                <Button title="Leave Lobby" onPress={leaveLobby} />
-              </View>
+  <TextInput
+    style={styles.chatInput}
+    placeholder="Type a message..."
+    value={chatMessage}
+    onChangeText={setChatMessage}
+    onSubmitEditing={sendMessage}
+  />
+  <Button title="Send" onPress={sendMessage} />
+
+  {/* ✅ Only show "Start Game" if the user is the host */}
+  {lobbies.find(l => l.id === selectedLobby)?.host === auth.currentUser?.uid &&
+ !lobbies.find(l => l.id === selectedLobby)?.inProgress && ( // ✅ Hide button once game starts
+  <Button title="Start Game Round" onPress={startGameRound} color="green" />
+)}
+
+  <Button title="Leave Lobby" onPress={leaveLobby} />
+</View>
             </View>
           ) : (
             <View style={{ flex: 1, justifyContent: "center" }}>

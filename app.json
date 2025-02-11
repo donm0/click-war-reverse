@@ -24,6 +24,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "b644bdb5-6c0d-4b5c-ae53-7a24cd60bd65"
+      }
+    },
+    "owner": "mophamouz"
   }
 }

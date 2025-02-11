@@ -1,299 +1,354 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Button, FlatList, StyleSheet, TextInput, ScrollView } from "react-native";
-import { collection, addDoc, onSnapshot, updateDoc, doc, getDoc, getDocs, arrayUnion, deleteDoc } from "firebase/firestore";
-import { db, auth } from "./firebaseConfig"; // Import Firebase
-import GameScreen from "./GameScreen"; // Make sure this path is correct
+import { View, Text, Button, FlatList, StyleSheet, TextInput, Image } from "react-native";
+import { auth } from "./firebaseConfig";
+import { useWebSocket } from "../context/WebSocketProvider";
+import { useRef, useCallback } from "react"; // ✅ Correct import
+import moment from "moment";
+import { KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from "react-native";
+
 
 export default function LobbyScreen({ navigation }: any) {
-  const [lobbies, setLobbies] = useState<any[]>([]); // Store lobby list
-  const [selectedLobby, setSelectedLobby] = useState<string | null>(null); // Track which lobby the user is in
-  const [chatMessage, setChatMessage] = useState(""); // Store the message the user is typing
-  const [messages, setMessages] = useState<any[]>([]); // Store chat messages in real-time
-  const [lobbyData, setLobbyData] = useState<any>(null); // Store current lobby data
+  const [lobbies, setLobbies] = useState<any[]>([]);
+  const [selectedLobby, setSelectedLobby] = useState<string | null>(null);
+  const [chatMessage, setChatMessage] = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [lobbyData, setLobbyData] = useState<any>(null);
+  const selectedLobbyRef = useRef<string | null>(null);
+  const flatListRef = useRef<FlatList>(null);
 
-  // Fetch lobbies in real-time from Firestore
+  type ChatMessage = {
+    sender: string;
+    text: string;
+    timestamp?: string;
+    profilePic?: string; // ✅ Profile picture URL
+    senderColor?: string; // ✅ Unique username colors
+    isCurrentUser?: boolean; // ✅ Identify current user
+  };  
+  
+  console.log("🔍 Rendering LobbyScreen");
+
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "lobbies"), (snapshot) => {
-      const lobbyData = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setLobbies(lobbyData);
-    });
-
-    return () => unsubscribe(); // Cleanup when screen unmounts
-  }, []);
-
-  // Fetch chat messages and lobby data when user selects a lobby
-  useEffect(() => {
-    if (selectedLobby) {
-      const lobbyRef = doc(db, "lobbies", selectedLobby);
-      const unsubscribe = onSnapshot(lobbyRef, (docSnap) => {
-        if (docSnap.exists()) {
-          setMessages(docSnap.data()?.messages || []);
-          setLobbyData(docSnap.data());
-        }
-      });
-
-      return () => unsubscribe(); // Cleanup when leaving the lobby
-    }
+    selectedLobbyRef.current = selectedLobby; // ✅ Keep track of selected lobby safely
   }, [selectedLobby]);
 
-  // Create a new lobby
-  const createLobby = async () => {
-    try {
-      const user = auth.currentUser;
-      if (!user) {
-        alert("You need to be signed in to create a lobby!");
-        return;
-      }
+  const ws = useWebSocket();
 
-      // Get the user's username from Firestore
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (!userDoc.exists()) {
-        alert("User data not found!");
-        return;
-      }
-      const username = userDoc.data()?.username || "Unknown Player";
-
-      // Create a lobby with an empty message list
-      const newLobby = await addDoc(collection(db, "lobbies"), {
-        host: user.uid,
-        players: [{ uid: user.uid, username }],
-        inProgress: false,
-        createdAt: new Date(),
-        messages: [],
-        lastActivity: Date.now(), // Track last activity
-      });
-
-      alert("Lobby created!");
-      setSelectedLobby(newLobby.id); // Auto-select the newly created lobby
-    } catch (error) {
-      alert("Error creating lobby: " + error);
-    }
-  };
-
-  // Join a lobby and enable chat
-  const joinLobby = async (lobbyId: string) => {
-    try {
-      const user = auth.currentUser;
-      if (!user) return alert("You need to be signed in to join a lobby!");
-
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (!userDoc.exists()) return alert("User data not found!");
-
-      const username = userDoc.data()?.username || "Unknown Player";
-      const lobbyRef = doc(db, "lobbies", lobbyId);
-      const lobbyDoc = await getDoc(lobbyRef);
-      if (!lobbyDoc.exists()) return alert("Lobby not found!");
-
-      const lobbyData = lobbyDoc.data();
-      const isAlreadyInLobby = lobbyData.players.some((player: any) => player.uid === user.uid);
-      if (isAlreadyInLobby) {
-        alert("You are already in this lobby!");
-        setSelectedLobby(lobbyId);
-        return;
-      }
-
-      const updatedPlayers = [...(lobbyData.players || []), { uid: user.uid, username }];
-      await updateDoc(lobbyRef, { players: updatedPlayers, lastActivity: Date.now() });
-
-      alert(`Joined Lobby! You're now in: ${lobbyId}`);
-      setSelectedLobby(lobbyId);
-    } catch (error) {
-      alert("Error joining lobby: " + error);
-    }
-  };
-
-  // Leave the lobby
-  const leaveLobby = async () => {
-    if (!selectedLobby) return;
-
-    try {
-      const user = auth.currentUser;
-      if (!user) return alert("You must be signed in to leave a lobby!");
-
-      const lobbyRef = doc(db, "lobbies", selectedLobby);
-      const lobbyDoc = await getDoc(lobbyRef);
-      if (!lobbyDoc.exists()) return alert("Lobby not found!");
-
-      const lobbyData = lobbyDoc.data();
-      const updatedPlayers = lobbyData.players.filter((player: any) => player.uid !== user.uid);
-
-      if (updatedPlayers.length === 0) {
-        await deleteDoc(lobbyRef); // Delete lobby if empty
-      } else {
-        await updateDoc(lobbyRef, { players: updatedPlayers, lastActivity: Date.now() });
-
-        // If the host left, assign a new host
-        if (lobbyData.host === user.uid) {
-          await updateDoc(lobbyRef, { host: updatedPlayers[0]?.uid || "" });
-        }
-      }
-
-      setSelectedLobby(null);
-    } catch (error) {
-      alert("Error leaving lobby: " + error);
-    }
-  };
-
-  const sendMessage = async () => {
-    if (!selectedLobby) return alert("You must be in a lobby to chat!");
-  
-    try {
-      const user = auth.currentUser;
-      if (!user) return alert("You must be signed in to chat!");
-      if (chatMessage.trim() === "") return;
-  
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      const username = userDoc.data()?.username || "Unknown";
-  
-      await updateDoc(doc(db, "lobbies", selectedLobby), {
-        messages: arrayUnion({
-          sender: username,
-          text: chatMessage,
-          timestamp: Date.now(),
-        }),
-        lastActivity: Date.now(),
-      });
-  
-      setChatMessage(""); // Clear input field
-    } catch (error) {
-      alert("Error sending message: " + error);
-    }
-  };
-  
-  const startGame = async () => {
-    if (!selectedLobby) return;
-  
-    try {
-      const lobbyRef = doc(db, "lobbies", selectedLobby);
-      await updateDoc(lobbyRef, {
-        inProgress: true, // Start the game
-        round: 1, // Start at round 1
-      });
-  
-      alert("Game Started!");
-    } catch (error) {
-      alert("Error starting game: " + error);
-    }
-  };
-  
-  // Close lobby (Host only)
-  const closeLobby = async () => {
-    if (!selectedLobby) return;
-    await deleteDoc(doc(db, "lobbies", selectedLobby));
-    setSelectedLobby(null);
-    alert("Lobby closed!");
-  };
-
-  // Auto-delete inactive lobbies
+  // ✅ Handle incoming WebSocket messages
   useEffect(() => {
-    const interval = setInterval(() => {
-      deleteInactiveLobbies();
-    }, 5 * 60 * 1000);
+    if (!ws) return;
+  
+    const handleMessage = (event: MessageEvent) => {
+      const data = JSON.parse(event.data);
+      console.log("📩 Received WebSocket Message:", JSON.stringify(data, null, 2)); // ✅ Log everything
+    }
+  },
+)
+  
+  // Auto fetch lobbies
+  // ✅ Correct useEffect for auto-fetching lobbies (without logging messages)
+useEffect(() => {
+  if (!ws) return;
+  ws.send(JSON.stringify({ type: "getLobbies" }));
+}, []); // 🔥 Runs only once  
 
-    return () => clearInterval(interval);
-  }, []);
+// ✅ NEW: Separate useEffect to track messages state changes
+useEffect(() => {
+  console.log("📜 Messages state updated:", messages);
+}, [messages]); 
 
-  const deleteInactiveLobbies = async () => {
-    const now = Date.now();
-    const threshold = 10 * 60 * 1000;
-    const snapshot = await getDocs(collection(db, "lobbies"));
+//Handle Messages
+useEffect(() => {
+  if (!ws) return;
 
-    snapshot.forEach(async (docSnap) => {
-      const lobbyData = docSnap.data();
-      if (lobbyData.lastActivity && now - lobbyData.lastActivity > threshold) {
-        await deleteDoc(docSnap.ref);
-        console.log(`Deleted inactive lobby: ${docSnap.id}`);
-      }
-    });
+  const handleMessage = (event: MessageEvent) => {
+    const data = JSON.parse(event.data);
+    console.log("📩 Received WebSocket Message:", data);
+
+    if (data.type === "lobbyCreated") {
+      console.log("✅ Setting Selected Lobby:", data.lobbyId);
+      setSelectedLobby(data.lobbyId);
+    }
+
+    if (data.type === "message" && data.lobbyId === selectedLobbyRef.current) {
+      console.log("📨 New Chat Message:", data.message);
+    
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        {
+          sender: data.message.sender,
+          text: data.message.text,
+          timestamp: data.message.timestamp || new Date().toISOString(),
+          profilePic: data.message.profilePic || "https://via.placeholder.com/40", // Default profile picture
+          senderColor: getUsernameColor(data.message.sender),
+          isCurrentUser: data.message.sender === auth.currentUser?.displayName, // Check if it's the current user
+        },
+      ]);     
+
+      // ✅ Auto-scroll to the latest message
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }    
   };
+
+  ws.addEventListener("message", handleMessage);
+  return () => {
+    ws.removeEventListener("message", handleMessage);
+  };
+}, [ws]); // ✅ Removed `selectedLobby` dependency
+
+  // ✅ Create a new lobby
+  const createLobby = () => {
+    const user = auth.currentUser;
+    if (!user) return alert("You need to be signed in!");
+  
+    console.log("🛠 Requesting lobby creation...");
+  
+    ws?.send(
+      JSON.stringify({
+        type: "createLobby",
+        user: {
+          uid: user.uid,
+          username: user.displayName || "Player",
+        },
+      })
+    );
+  };   
+
+  // ✅ Join a lobby
+  const joinLobby = (lobbyId: string) => {
+    const user = auth.currentUser;
+    if (!user) return alert("You need to be signed in!");
+  
+    console.log("👤 Joining lobby as:", user.displayName || "Unknown");
+  
+    ws?.send(
+      JSON.stringify({
+        type: "joinLobby",
+        lobbyId,
+        user: { uid: user.uid, username: user.displayName || "Player" },
+      })
+    );
+  
+    setSelectedLobby(lobbyId);
+  };  
+
+  // ✅ Leave the lobby
+  const leaveLobby = () => {
+    if (!selectedLobby) return;
+
+    ws?.send(
+      JSON.stringify({
+        type: "leaveLobby",
+        lobbyId: selectedLobby,
+        userId: auth.currentUser?.uid,
+      })
+    );
+
+    setSelectedLobby(null);
+  };
+
+  // ✅ Send a message to chat
+  const sendMessage = () => {
+    if (!selectedLobby || chatMessage.trim() === "") return;
+
+    console.log("🔥 Firebase User:", auth.currentUser);
+
+    const messageData = {
+  type: "sendMessage",
+  lobbyId: selectedLobby,
+  message: {
+    sender: auth.currentUser?.displayName || "Player",
+    text: chatMessage,
+    timestamp: new Date().toISOString(), // ✅ Add timestamp
+  },
+};
+  
+    console.log("📤 Sending Message to WebSocket:", messageData); // ✅ Debug outgoing message
+  
+    ws?.send(JSON.stringify(messageData));
+  
+    setChatMessage(""); // ✅ Clear input after sending
+  };  
+
+  const getUsernameColor = (username: string) => {
+    const colors = ["#E57373", "#81C784", "#64B5F6", "#FFD54F", "#BA68C8"];
+    let hash = 0;
+    for (let i = 0; i < username.length; i++) {
+      hash = username.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash % colors.length)];
+  };
+  
+
+  // ✅ Start a game round (Bot posts buttons in chat)
+  const startGameRound = () => {
+    if (!selectedLobby) return;
+  
+    const buttons = ["🔵", "🟢", "🔴"];
+    const safeIndex = Math.floor(Math.random() * buttons.length);
+  
+    const botMessage = {
+      type: "sendMessage",
+      lobbyId: selectedLobby,
+      message: {
+        sender: "Bot 🤖",
+        text: "🎲 Pick a button! Tap below:",
+        buttons, // ✅ These buttons will appear in the chatbox
+        safeIndex, // ✅ Used for game logic
+      },
+    };
+  
+    ws?.send(JSON.stringify(botMessage));
+  
+    // Reveal results after 6 seconds
+    setTimeout(() => revealResults(safeIndex), 6000);
+  };
+  
+
+  // ✅ Reveal results after 6 seconds
+  const revealResults = (safeIndex: number) => {
+    const resultMessage = {
+      type: "sendMessage",
+      lobbyId: selectedLobby,
+      message: {
+        sender: "Bot 🤖",
+        text: `🚨 Round over! The safe button was ${safeIndex === 0 ? "🔵" : safeIndex === 1 ? "🟢" : "🔴"}!`,
+      },
+    };
+  
+    ws?.send(JSON.stringify(resultMessage));
+  };  
+
+  const chooseButton = (buttonIndex: number) => {
+    if (!selectedLobby) return;
+  
+    const choiceMessage = {
+      type: "playerChoice",
+      lobbyId: selectedLobby,
+      userId: auth.currentUser?.uid,
+      choice: buttonIndex,
+    };
+  
+    ws?.send(JSON.stringify(choiceMessage));
+  };  
+
+  console.log("📝 Rendering with messages:", messages);
+
+  // ✅ Place this function before the return statement
+  const renderChatMessage = useCallback(({ item }: { item: ChatMessage }) => {
+    return (
+      <View style={[styles.messageContainer, item.isCurrentUser ? styles.currentUserMessage : styles.otherUserMessage]}>
+        <Image source={{ uri: item.profilePic }} style={[styles.profilePic, item.isCurrentUser ? styles.currentUserPic : null]} />
+        <View style={[styles.messageBubble, item.isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble]}>
+          <View style={styles.messageHeader}>
+            <Text style={[styles.chatSender, { color: item.senderColor }]}>{item.sender}</Text>
+            <Text style={[
+  styles.chatTimestamp, 
+  { color: item.isCurrentUser ? "#FFF" : "#000" } // ✅ White for blue, Black for grey
+]}>
+  {moment(item.timestamp).format("h:mm A")}
+</Text>
+          </View>
+          <Text style={styles.chatText}>{item.text}</Text>
+        </View>
+      </View>
+    );
+  }, []);  
 
   return (
-    <View style={styles.container}>
-      {selectedLobby ? (
-  lobbyData?.inProgress ? (
-    <GameScreen lobbyData={lobbyData} selectedLobby={selectedLobby} />
-  ) : (
-    <View>
-      <Text style={styles.title}>Lobby Chat</Text>
-      <ScrollView style={styles.chatBox}>
-        {messages.map((msg: any, index: number) => (
-          <Text key={index}>
-            <Text style={styles.chatSender}>{msg.sender}: </Text>
-            {msg.text}
-          </Text>
-        ))}
-      </ScrollView>
-      <TextInput
-        style={styles.chatInput}
-        placeholder="Type a message..."
-        value={chatMessage}
-        onChangeText={setChatMessage}
-        onSubmitEditing={sendMessage}
-      />
-      <Button title="Send" onPress={sendMessage} />
-      <Button title="Leave Lobby" onPress={leaveLobby} />
-      {auth.currentUser?.uid === lobbyData?.host && <Button title="Start Game" onPress={startGame} color="green" />}
-    </View>
-  )
-) : (
-  <View>
-    <Text style={styles.title}>Click War Reverse Lobbies</Text>
-    <Button title="Create Lobby" onPress={createLobby} />
-    <FlatList
-      data={lobbies}
-      keyExtractor={(item) => item.id}
-      renderItem={({ item }: { item: any }) => (
-        <View style={styles.lobbyItem}>
-          <Text>Lobby ID: {item.id}</Text>
-          {item.players.map((player: any, index: number) => (
-            <Text key={index}>• {player.username}</Text>
-          ))}
-          <Button title="Join Lobby" onPress={() => joinLobby(item.id)} />
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === "ios" ? "padding" : "height"} 
+      style={{ flex: 1 }}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={{ flex: 1 }}>
+          {selectedLobby ? (
+            <View style={{ flex: 1, justifyContent: "space-between" }}>
+              <Text style={styles.title}>Lobby Chat</Text>
+  
+              <View style={[styles.chatContainer, { flex: 1 }]}>
+                <FlatList
+                  ref={flatListRef}
+                  data={messages}
+                  keyExtractor={(item, index) => `${index}-${item.sender}-${item.text}`}
+                  renderItem={renderChatMessage}
+                  onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                  onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                />
+              </View>
+  
+              {/* ✅ Input & Buttons Stay at Bottom */}
+              <View style={{ paddingBottom: 10 }}>
+                <TextInput
+                  style={styles.chatInput}
+                  placeholder="Type a message..."
+                  value={chatMessage}
+                  onChangeText={setChatMessage}
+                  onSubmitEditing={sendMessage}
+                />
+                <Button title="Send" onPress={sendMessage} />
+                <Button title="Start Game Round" onPress={startGameRound} color="green" />
+                <Button title="Leave Lobby" onPress={leaveLobby} />
+              </View>
+            </View>
+          ) : (
+            <View style={{ flex: 1, justifyContent: "center" }}>
+              <Text style={styles.title}>Click War Reverse Lobbies</Text>
+              <Button title="Create Lobby" onPress={createLobby} />
+              <FlatList
+                data={lobbies}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={({ item }) => (
+                  <View style={styles.lobbyItem}>
+                    <Text>Lobby ID: {item.id}</Text>
+                    {item.players?.map((player: any) => (
+                      <Text key={`${item.id}-player-${player.uid}`}>• {player.username || "Unknown Player"}</Text>
+                    ))}
+                    <Button title="Join Lobby" onPress={() => joinLobby(item.id)} />
+                  </View>
+                )}
+              />
+            </View>
+          )}
         </View>
-      )}
-    />
-  </View>
-)}
-
-    </View>
-  );
-
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
+  );  
 }
+
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    padding: 20, 
-    backgroundColor: "#f4f4f4" 
+  container: { flex: 1, padding: 20, backgroundColor: "#f4f4f4" },
+  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
+  lobbyItem: { padding: 10, backgroundColor: "#ddd", marginVertical: 5, borderRadius: 5 },
+
+  // ✅ Fix: Chatbox styles
+  emptyChatText: { textAlign: "center", color: "#999", marginTop: 10 },
+  chatContainer: { flex: 1, backgroundColor: "#fff", borderRadius: 5, padding: 10, marginBottom: 10,  minHeight: 400, maxHeight: "75%" },
+  messageContainer: { flexDirection: "row", alignItems: "flex-start", marginBottom: 10 },
+  currentUserMessage: { flexDirection: "row-reverse", alignSelf: "flex-end" },
+  otherUserMessage: { flexDirection: "row", alignSelf: "flex-start" },  
+  profilePic: { width: 40, height: 40, borderRadius: 20, marginRight: 10 },
+  messageBubble: { maxWidth: "75%", padding: 10, borderRadius: 10 },
+  currentUserBubble: { backgroundColor: "#007AFF", alignSelf: "flex-end" },
+  otherUserBubble: { backgroundColor: "#E5E5EA", alignSelf: "flex-start" },
+  chatSender: { fontWeight: "bold" },
+  chatText: { color: "#333" },
+  chatInput: { borderWidth: 1, borderColor: "#ccc", padding: 15, borderRadius: 10, marginBottom: 10 },
+  currentUserPic: { marginLeft: 10, marginRight: 0 },
+  
+
+  // ✅ Fix: Button container inside chat
+  buttonContainer: { flexDirection: "row", marginTop: 5, gap: 5 },
+
+  messageHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
-  title: { 
-    fontSize: 24, 
-    fontWeight: "bold", 
-    marginBottom: 20 
-  },
-  lobbyItem: { 
-    padding: 10, 
-    backgroundColor: "#ddd", 
-    marginVertical: 5, 
-    borderRadius: 5 
-  },
-  chatBox: { 
-    maxHeight: 200, 
-    padding: 5, 
-    backgroundColor: "#fff", 
-    borderRadius: 5, 
-    marginBottom: 10 
-  },
-  chatSender: { 
-    fontWeight: "bold" 
-  },
-  chatInput: { 
-    borderWidth: 1, 
-    borderColor: "#ccc", 
-    padding: 10, 
-    borderRadius: 5, 
-    marginBottom: 10 
-  }
+  chatTimestamp: {
+    fontSize: 12,
+    color: "#FFF",
+    opacity: 0.7
+  },  
 });

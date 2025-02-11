@@ -39,20 +39,18 @@ wss.on("connection", (ws) => {
   break;
 
 
-  case "createLobby":
-    const lobbyId = `lobby-${Date.now()}`; // Generate ID on the server
-    const newLobby = {
-      id: lobbyId,
-      host: data.user.uid,
-      players: [{ ...data.user, ws }], // Store player WebSocket reference
-      messages: [],
-      inProgress: false,
-      round: 0,
-    };
-  
+  const newLobby = {
+    id: lobbyId,
+    host: data.user.uid,
+    players: [{ ...data.user, ws }], // Store player WebSocket reference
+    messages: [],
+    inProgress: false, // ✅ Track if game is running
+    round: 0,
+  };  
+
     lobbies[lobbyId] = newLobby;
     console.log(`✅ Lobby created:`, newLobby);
-  
+
     // Send the correct lobby ID back to the client
     ws.send(
       JSON.stringify({
@@ -60,7 +58,14 @@ wss.on("connection", (ws) => {
         lobbyId: lobbyId,
       })
     );
-    break;        
+
+    // ✅ Broadcast updated lobby list to all players
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ type: "updateLobbies", lobbies: Object.values(lobbies) }));
+      }
+    });
+    break;       
 
           case "reconnect":
   if (!lobbies[data.lobbyId]) {
@@ -94,7 +99,7 @@ wss.on("connection", (ws) => {
     console.log(`✅ ${data.user.username} joined lobby ${data.lobbyId}`);
   }
 
-  // Send lobby update to all players
+  // ✅ Broadcast updated lobby info to all players
   broadcastToLobby(data.lobbyId, { 
     type: "lobbyUpdate", 
     lobbyId: data.lobbyId, 
@@ -103,33 +108,44 @@ wss.on("connection", (ws) => {
       players: lobbies[data.lobbyId].players.map(({ ws, ...player }) => player), // Remove WebSocket reference
     }
   });
-  
-  // 🔄 Also send updated lobby list to all players
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({ type: "updateLobbies", lobbies: Object.values(lobbies) }));
-    }
-  });
 
-            case "leaveLobby":
-              if (!lobbies[data.lobbyId]) return;
-            
-              lobbies[data.lobbyId].players = lobbies[data.lobbyId].players.filter(p => p.uid !== data.userId);
-              console.log(`${data.userId} left ${data.lobbyId}`);
-            
-              // Wait 30 seconds before deleting the lobby, allowing for reconnections
-              setTimeout(() => {
-                if (lobbies[data.lobbyId] && lobbies[data.lobbyId].players.length === 0) {
-                  console.log(`⏳ Checking for reconnect...`);
-                  
-                  setTimeout(() => {
-                    if (lobbies[data.lobbyId] && lobbies[data.lobbyId].players.length === 0) {
-                      delete lobbies[data.lobbyId];
-                      console.log(`❌ Lobby ${data.lobbyId} permanently closed due to inactivity`);
-                    }
-                  }, 30000); // Final check after another 30 seconds
-                }
-              }, 30000); // Initial wait period                     
+  // ✅ Send a system message announcing the new player
+  const joinMessage = {
+    type: "message",
+    lobbyId: data.lobbyId,
+    message: {
+      sender: "Bot 🤖",
+      text: `🎉 ${data.user.username} has joined the game!`,
+      timestamp: new Date().toISOString(),
+    }
+  };
+
+  broadcastToLobby(data.lobbyId, joinMessage); // ✅ Send bot message
+  break;
+
+  case "leaveLobby":
+    if (!lobbies[data.lobbyId]) return;
+  
+    const leavingPlayer = lobbies[data.lobbyId].players.find(p => p.uid === data.userId);
+    const leavingPlayerName = leavingPlayer ? leavingPlayer.username : "Unknown Player";
+  
+    lobbies[data.lobbyId].players = lobbies[data.lobbyId].players.filter(p => p.uid !== data.userId);
+    console.log(`👋 ${leavingPlayerName} left ${data.lobbyId}`);
+  
+    // ✅ Send a bot message announcing the player left
+    const leaveMessage = {
+      type: "message",
+      lobbyId: data.lobbyId,
+      message: {
+        sender: "Bot 🤖",
+        text: `👋 ${leavingPlayerName} has left the game.`,
+        timestamp: new Date().toISOString(),
+      }
+    };
+  
+    broadcastToLobby(data.lobbyId, leaveMessage); // ✅ Send bot message
+  
+    break;                      
 
               case "sendMessage":
   console.log("📩 Received message request:", data);  // ✅ Debug message reception
@@ -153,15 +169,23 @@ wss.on("connection", (ws) => {
   console.log(`✅ Broadcasted message to lobby ${data.lobbyId}:`, data.message); // ✅ Confirm broadcast
   break;            
 
-      case "startGame":
-        if (!lobbies[data.lobbyId]) return;
-        lobbies[data.lobbyId].inProgress = true;
-        console.log(`Game started in ${data.lobbyId}`);
-        broadcastToLobby(data.lobbyId, { type: "gameStarted", lobbyId: data.lobbyId });
+  case "startGame":
+  if (!lobbies[data.lobbyId]) return;
 
-        // Start countdown before round 1
-        startCountdown(data.lobbyId);
-        break;
+  // ✅ Prevent game from starting if it's already in progress
+  if (lobbies[data.lobbyId].inProgress) {
+    console.warn(`⚠️ Game in ${data.lobbyId} already started, ignoring request.`);
+    return;
+  }
+
+  lobbies[data.lobbyId].inProgress = true;
+  console.log(`🎮 Game started in ${data.lobbyId}`);
+
+  broadcastToLobby(data.lobbyId, { type: "gameStarted", lobbyId: data.lobbyId });
+
+  // Start countdown before round 1
+  startCountdown(data.lobbyId);
+  break;
 
       case "nextRound":
         if (!lobbies[data.lobbyId]) return;

@@ -1,12 +1,21 @@
+const http = require("http");
 const WebSocket = require("ws");
+const express = require("express");
 
 // Store game state (lobbies & players)
 const lobbies = {};
 
 // Create WebSocket server
+const app = express();
 const PORT = process.env.PORT || 8080;
 const server = require("http").createServer();
 const wss = new WebSocket.Server({ server });
+
+
+// ✅ Add an HTTP route for Render to detect
+app.get("/", (req, res) => {
+  res.send("WebSocket server is running!");
+});
 
 server.listen(PORT, () => {
   console.log(`WebSocket server running on port ${PORT}`);
@@ -36,6 +45,11 @@ wss.on("connection", (ws) => {
     clearInterval(keepAliveInterval);
     console.log("Player disconnected.");
   });
+  
+// ✅ Start the HTTP & WebSocket server
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`✅ WebSocket server running on port ${PORT}`);
+});
 
   ws.on("message", (message) => {
     const data = JSON.parse(message);

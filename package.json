@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
-  "start": "NODE_ENV=production expo start --no-dev --minify",
+  "start": "NODE_OPTIONS=--max-old-space-size=256 expo start --no-dev --minify",
   "android": "expo run:android",
   "ios": "expo run:ios",
   "web": "expo start --web"

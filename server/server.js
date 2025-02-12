@@ -5,11 +5,12 @@ const lobbies = {};
 
 // Create WebSocket server
 const PORT = process.env.PORT || 8080;
-const wss = new WebSocket.Server({ port: PORT });
-console.log(`WebSocket server running on ws://localhost:${PORT}`);
+const server = require("http").createServer();
+const wss = new WebSocket.Server({ server });
 
-
-console.log("WebSocket server running on ws://localhost:8080");
+server.listen(PORT, () => {
+  console.log(`WebSocket server running on port ${PORT}`);
+});
 
 // Function to broadcast updates to all players in a lobby
 const broadcastToLobby = (lobbyId, data) => {
@@ -23,6 +24,18 @@ const broadcastToLobby = (lobbyId, data) => {
 // Handle new connections
 wss.on("connection", (ws) => {
   console.log("New player connected!");
+
+  // 🔹 Send a ping every 25 seconds to keep the connection alive
+  const keepAliveInterval = setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.ping();
+    }
+  }, 25000);
+
+  ws.on("close", () => {
+    clearInterval(keepAliveInterval);
+    console.log("Player disconnected.");
+  });
 
   ws.on("message", (message) => {
     const data = JSON.parse(message);

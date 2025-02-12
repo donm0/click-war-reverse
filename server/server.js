@@ -1,19 +1,12 @@
-const express = require("express");
-const http = require("http");
 const WebSocket = require("ws");
 
 // Store game state (lobbies & players)
 const lobbies = {};
 
 // Create WebSocket server
-const app = express();
 const PORT = process.env.PORT || 8080;
 const server = require("http").createServer();
 const wss = new WebSocket.Server({ server });
-
-app.get("/", (req, res) => {
-  res.send("WebSocket server is running!");
-});
 
 server.listen(PORT, () => {
   console.log(`WebSocket server running on port ${PORT}`);

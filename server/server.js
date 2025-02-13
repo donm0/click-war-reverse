@@ -6,7 +6,7 @@ const express = require("express");
 const lobbies = {};
 
 // Create WebSocket server
-const app = express(app);
+const app = express();
 const PORT = process.env.PORT || 8080;
 const server = require("http").createServer();
 const wss = new WebSocket.Server({ server });

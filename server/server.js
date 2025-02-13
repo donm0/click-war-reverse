@@ -8,7 +8,7 @@ const lobbies = {};
 // Create WebSocket server
 const app = express();
 const PORT = process.env.PORT || 8080;
-const server = require("http").createServer();
+const server = require("http").createServer(app);
 const wss = new WebSocket.Server({ server });
 
 // ✅ Add an HTTP route for Render to detect
@@ -41,10 +41,6 @@ wss.on("connection", (ws) => {
     console.log("Player disconnected.");
   });
   
-// ✅ Start the HTTP & WebSocket server
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`✅ WebSocket server running on port ${PORT}`);
-});
 
   ws.on("message", (message) => {
     const data = JSON.parse(message);
@@ -260,3 +256,8 @@ const startCountdown = (lobbyId) => {
     count--;
   }, 1000);
 };
+
+// ✅ Start the HTTP & WebSocket server
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`✅ WebSocket server running on port ${PORT}`);
+});

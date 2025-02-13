@@ -5,6 +5,7 @@ import { useWebSocket } from "../context/WebSocketProvider";
 import { useRef, useCallback } from "react"; // ✅ Correct import
 import moment from "moment";
 import { KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from "react-native";
+import { TouchableOpacity } from "react-native";
 
 
 export default function LobbyScreen({ navigation }: any) {
@@ -20,9 +21,10 @@ export default function LobbyScreen({ navigation }: any) {
     sender: string;
     text: string;
     timestamp?: string;
-    profilePic?: string; // ✅ Profile picture URL
-    senderColor?: string; // ✅ Unique username colors
-    isCurrentUser?: boolean; // ✅ Identify current user
+    profilePic?: string;
+    senderColor?: string;
+    isCurrentUser?: boolean;
+    buttons?: string[]; // ✅ Add support for game buttons
   };  
   
   console.log("🔍 Rendering LobbyScreen");
@@ -264,27 +266,59 @@ useEffect(() => {
       choice: buttonIndex,
     };
   
+    console.log("📤 Sending Choice to WebSocket:", choiceMessage);
     ws?.send(JSON.stringify(choiceMessage));
-  };  
+  };   
 
   console.log("📝 Rendering with messages:", messages);
 
   // ✅ Place this function before the return statement
   const renderChatMessage = useCallback(({ item }: { item: ChatMessage }) => {
     return (
-      <View style={[styles.messageContainer, item.isCurrentUser ? styles.currentUserMessage : styles.otherUserMessage]}>
-        <Image source={{ uri: item.profilePic }} style={[styles.profilePic, item.isCurrentUser ? styles.currentUserPic : null]} />
-        <View style={[styles.messageBubble, item.isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble]}>
+      <View
+        style={[
+          styles.messageContainer,
+          item.isCurrentUser ? styles.currentUserMessage : styles.otherUserMessage,
+        ]}
+      >
+        <Image
+          source={{ uri: item.profilePic }}
+          style={[styles.profilePic, item.isCurrentUser ? styles.currentUserPic : null]}
+        />
+        <View
+          style={[
+            styles.messageBubble,
+            item.isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble,
+          ]}
+        >
           <View style={styles.messageHeader}>
             <Text style={[styles.chatSender, { color: item.senderColor }]}>{item.sender}</Text>
-            <Text style={[
-  styles.chatTimestamp, 
-  { color: item.isCurrentUser ? "#FFF" : "#000" } // ✅ White for blue, Black for grey
-]}>
-  {moment(item.timestamp).format("h:mm A")}
-</Text>
+            <Text
+              style={[
+                styles.chatTimestamp,
+                { color: item.isCurrentUser ? "#FFF" : "#000" },
+              ]}
+            >
+              {moment(item.timestamp).format("h:mm A")}
+            </Text>
           </View>
+  
           <Text style={styles.chatText}>{item.text}</Text>
+  
+          {/* ✅ Render Buttons If Available */}
+          {item.buttons && Array.isArray(item.buttons) && (
+            <View style={styles.buttonContainer}>
+              {item.buttons.map((button: string, index: number) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.gameButton}
+                  onPress={() => chooseButton(index)} // Handles button tap
+                >
+                  <Text style={styles.gameButtonText}>{button}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
       </View>
     );
@@ -379,8 +413,24 @@ const styles = StyleSheet.create({
   
 
   // ✅ Fix: Button container inside chat
-  buttonContainer: { flexDirection: "row", marginTop: 5, gap: 5 },
-
+  gameButton: {
+    backgroundColor: "#007AFF", // Blue button
+    padding: 10,
+    borderRadius: 5,
+    marginTop: 5,
+    alignItems: "center",
+  },
+  gameButtonText: {
+    color: "#FFF",
+    fontWeight: "bold",
+  },
+  buttonContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 5,
+    gap: 10,
+  },  
+  
   messageHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -389,6 +439,7 @@ const styles = StyleSheet.create({
   chatTimestamp: {
     fontSize: 12,
     color: "#FFF",
-    opacity: 0.7
-  },  
+    opacity: 0.7,
+  },
+  
 });

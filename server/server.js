@@ -34,15 +34,28 @@ const playGameRound = async (lobbyId) => {
     // ✅ Step 1: Countdown before the round starts
     for (let count = 5; count > 0; count--) {
       broadcastToLobby(lobbyId, { type: "countdown", count });
-      await delay(1000); // Wait 1 second
+      await delay(1000);
     }
 
-    // ✅ Step 2: Send game choices
-    const buttons = ["🔵", "🟢", "🔴"];
-    const safeIndex = Math.floor(Math.random() * buttons.length);
+    // ✅ Step 2: Set up the round
+    const numButtons = Math.min(5, 3 + Math.floor(lobbies[lobbyId].round / 2)); // Increase button count each round
+    const buttons = Array.from({ length: numButtons }, (_, i) => ["🔵", "🟢", "🔴", "🟡", "🟠"][i]);
+    const safeIndex = Math.floor(Math.random() * numButtons);
+
     lobbies[lobbyId].safeIndex = safeIndex;
+    lobbies[lobbyId].buttons = buttons;
+    lobbies[lobbyId].playerLives = lobbies[lobbyId].playerLives || {};
+
+    // Initialize player lives if they don’t have a record yet
+    lobbies[lobbyId].players.forEach((player) => {
+      if (!lobbies[lobbyId].playerLives[player.uid]) {
+        lobbies[lobbyId].playerLives[player.uid] = 5;
+      }
+    });
+
     console.log(`🎲 Safe button for ${lobbyId}:`, buttons[safeIndex]);
 
+    // ✅ Step 3: Send game choices to players
     broadcastToLobby(lobbyId, {
       type: "chooseButton",
       lobbyId,
@@ -50,33 +63,17 @@ const playGameRound = async (lobbyId) => {
         sender: "Bot 🤖",
         text: "🎲 Pick a button! Tap below:",
         buttons,
-        safeIndex, // ✅ We include this but players won't see it
       },
     });
 
-    // ✅ Step 3: Wait 6 seconds for player choices
+    // ✅ Step 4: Wait for player choices
     await delay(6000);
 
-    // ✅ Step 4: Reveal results
-    const correctButton = buttons[safeIndex];
-
-    broadcastToLobby(lobbyId, {
-      type: "gameResult",
-      lobbyId,
-      message: {
-        sender: "Bot 🤖",
-        text: `🚨 Round over! The safe button was **${correctButton}**!`,
-      },
-    });
-
-    // ✅ Step 5: Reset game state (so a new round can start)
-    await delay(3000);
-    lobbies[lobbyId].inProgress = false;
+    // ✅ Step 5: Process choices (Handled in `playerChoice` case in WebSocket)
   } catch (error) {
     console.error("❌ Error in game round:", error);
   }
 };
-
 
 // Handle new connections
 wss.on("connection", (ws) => {
@@ -281,12 +278,69 @@ wss.on("connection", (ws) => {
   playGameRound(data.lobbyId);
   break;
 
-      case "nextRound":
-        if (!lobbies[data.lobbyId]) return;
-        lobbies[data.lobbyId].round += 1;
-        console.log(`Round ${lobbies[data.lobbyId].round} started in ${data.lobbyId}`);
-        startCountdown(data.lobbyId);
-        break;
+  case "playerChoice":
+    if (!lobbies[data.lobbyId]) return;
+  
+    const { userId, choice } = data;
+    const safeIndex = lobbies[lobbyId].safeIndex;
+    const buttons = lobbies[lobbyId].buttons;
+  
+    // Check if the player survived
+    const survived = choice === safeIndex;
+    let remainingLives = lobbies[lobbyId].playerLives[userId];
+  
+    if (!survived) {
+      remainingLives--; // Lose a life if incorrect choice
+    }
+  
+    // Update player lives
+    lobbies[lobbyId].playerLives[userId] = remainingLives;
+  
+    // 🔹 Send ephemeral result message to player
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN && lobbies[lobbyId].players.some(p => p.ws === client && p.uid === userId)) {
+        client.send(JSON.stringify({
+          type: "ephemeralMessage",
+          message: {
+            text: survived
+              ? `✅ You survived! Remaining lives: ${remainingLives}`
+              : `❌ You lost a life! Remaining lives: ${remainingLives}`,
+          },
+        }));
+      }
+    });
+  
+    // 🔹 Reveal all buttons to everyone
+    broadcastToLobby(lobbyId, {
+      type: "revealButtons",
+      buttons: buttons.map((btn, i) => ({
+        text: btn,
+        type: i === safeIndex ? "safe" : "trap",
+      })),
+    });
+  
+    // 🔹 Eliminate players who lost all lives
+    lobbies[lobbyId].players = lobbies[lobbyId].players.filter(player => lobbies[lobbyId].playerLives[player.uid] > 0);
+  
+    // ✅ Check if game is over
+    if (lobbies[lobbyId].players.length === 1) {
+      const winner = lobbies[lobbyId].players[0];
+      broadcastToLobby(lobbyId, {
+        type: "gameOver",
+        winner: winner.username,
+      });
+      delete lobbies[lobbyId]; // Reset lobby
+    } else {
+      setTimeout(() => playGameRound(lobbyId), 3000); // Start new round
+    }
+    break;  
+
+case "nextRound":
+  if (!lobbies[data.lobbyId]) return;
+  lobbies[data.lobbyId].round += 1;
+  console.log(`Round ${lobbies[data.lobbyId].round} started in ${data.lobbyId}`);
+  startCountdown(data.lobbyId);
+  break;
 
       case "closeLobby":
         delete lobbies[data.lobbyId];

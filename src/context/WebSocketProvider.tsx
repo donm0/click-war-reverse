@@ -21,7 +21,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
 
     // Create a new WebSocket connection
-    wsRef.current = new WebSocket("ws://192.168.1.40:8080");
+    wsRef.current = new WebSocket("wss://click-war-reverse.onrender.com");
 
     wsRef.current.onopen = () => {
       console.log("✅ Connected to WebSocket");

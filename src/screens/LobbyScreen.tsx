@@ -39,8 +39,13 @@ export default function LobbyScreen({ navigation }: any) {
   
     const handleMessage = (event: MessageEvent) => {
       const data = JSON.parse(event.data);
-      console.log("📩 Received WebSocket Message:", JSON.stringify(data, null, 2)); // ✅ Log everything
-    }
+      console.log("📩 Received WebSocket Message:", JSON.stringify(data, null, 2));
+    
+      if (data.type === "lobbyCreated") {
+        console.log("✅ Lobby Created Successfully:", data.lobbyId);
+        setSelectedLobby(data.lobbyId);
+      }
+    };    
   },
 )
   
@@ -124,18 +129,25 @@ useEffect(() => {
     const user = auth.currentUser;
     if (!user) return alert("You need to be signed in!");
   
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      console.error("❌ WebSocket not connected! Cannot create lobby.");
+      alert("WebSocket is not connected. Try again.");
+      return;
+    }
+  
     console.log("🛠 Requesting lobby creation...");
   
-    ws?.send(
-      JSON.stringify({
-        type: "createLobby",
-        user: {
-          uid: user.uid,
-          username: user.displayName || "Player",
-        },
-      })
-    );
-  };   
+    const lobbyData = {
+      type: "createLobby",
+      user: {
+        uid: user.uid,
+        username: user.displayName || "Player",
+      },
+    };
+  
+    console.log("📤 Sending Lobby Creation Request:", lobbyData);
+    ws.send(JSON.stringify(lobbyData));
+  };     
 
   // ✅ Join a lobby
   const joinLobby = (lobbyId: string) => {

@@ -24,8 +24,8 @@ export default function LobbyScreen({ navigation }: any) {
     profilePic?: string;
     senderColor?: string;
     isCurrentUser?: boolean;
-    buttons?: string[]; // ✅ Add support for game buttons
-  };  
+    buttons?: string[]; // ✅ Ensure TypeScript allows buttons
+  };    
   
   console.log("🔍 Rendering LobbyScreen");
 
@@ -107,11 +107,12 @@ useEffect(() => {
           sender: data.message.sender,
           text: data.message.text,
           timestamp: data.message.timestamp || new Date().toISOString(),
-          profilePic: data.message.profilePic || "https://via.placeholder.com/40", // Default profile picture
+          profilePic: data.message.profilePic || "https://via.placeholder.com/40",
           senderColor: getUsernameColor(data.message.sender),
-          isCurrentUser: data.message.sender === auth.currentUser?.displayName, // Check if it's the current user
+          isCurrentUser: data.message.sender === auth.currentUser?.displayName,
+          buttons: data.message.buttons || [], // ✅ Store buttons properly
         },
-      ]);    
+      ]);         
 
       // ✅ Auto-scroll to the latest message
       setTimeout(() => {

@@ -1,6 +1,8 @@
 const http = require("http");
 const WebSocket = require("ws");
 const express = require("express");
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 
 // Store game state (lobbies & players)
 const lobbies = {};
@@ -24,6 +26,57 @@ const broadcastToLobby = (lobbyId, data) => {
     }
   });
 };
+
+const playGameRound = async (lobbyId) => {
+  if (!lobbies[lobbyId]) return;
+
+  try {
+    // ✅ Step 1: Countdown before the round starts
+    for (let count = 5; count > 0; count--) {
+      broadcastToLobby(lobbyId, { type: "countdown", count });
+      await delay(1000); // Wait 1 second
+    }
+
+    // ✅ Step 2: Send game choices
+    const buttons = ["🔵", "🟢", "🔴"];
+    const safeIndex = Math.floor(Math.random() * buttons.length);
+    lobbies[lobbyId].safeIndex = safeIndex;
+    console.log(`🎲 Safe button for ${lobbyId}:`, buttons[safeIndex]);
+
+    broadcastToLobby(lobbyId, {
+      type: "chooseButton",
+      lobbyId,
+      message: {
+        sender: "Bot 🤖",
+        text: "🎲 Pick a button! Tap below:",
+        buttons,
+        safeIndex, // ✅ We include this but players won't see it
+      },
+    });
+
+    // ✅ Step 3: Wait 6 seconds for player choices
+    await delay(6000);
+
+    // ✅ Step 4: Reveal results
+    const correctButton = buttons[safeIndex];
+
+    broadcastToLobby(lobbyId, {
+      type: "gameResult",
+      lobbyId,
+      message: {
+        sender: "Bot 🤖",
+        text: `🚨 Round over! The safe button was **${correctButton}**!`,
+      },
+    });
+
+    // ✅ Step 5: Reset game state (so a new round can start)
+    await delay(3000);
+    lobbies[lobbyId].inProgress = false;
+  } catch (error) {
+    console.error("❌ Error in game round:", error);
+  }
+};
+
 
 // Handle new connections
 wss.on("connection", (ws) => {
@@ -216,19 +269,16 @@ wss.on("connection", (ws) => {
   case "startGame":
   if (!lobbies[data.lobbyId]) return;
 
-  // ✅ Prevent game from starting if it's already in progress
   if (lobbies[data.lobbyId].inProgress) {
-    console.warn(`⚠️ Game in ${data.lobbyId} already started, ignoring request.`);
+    console.warn(`⚠️ Game in ${data.lobbyId} already started.`);
     return;
   }
 
   lobbies[data.lobbyId].inProgress = true;
   console.log(`🎮 Game started in ${data.lobbyId}`);
 
-  broadcastToLobby(data.lobbyId, { type: "gameStarted", lobbyId: data.lobbyId });
-
-  // Start countdown before round 1
-  startCountdown(data.lobbyId);
+  // ✅ Start the game asynchronously
+  playGameRound(data.lobbyId);
   break;
 
       case "nextRound":
@@ -259,26 +309,6 @@ wss.on("connection", (ws) => {
   });
 });
 
-// Start countdown before each round
-const startCountdown = (lobbyId) => {
-  let count = 5;
-
-  const interval = setInterval(() => {
-    if (!lobbies[lobbyId]) {
-      clearInterval(interval);
-      return;
-    }
-
-    broadcastToLobby(lobbyId, { type: "countdown", count });
-
-    if (count === 0) {
-      clearInterval(interval);
-      broadcastToLobby(lobbyId, { type: "roundStart", lobbyId });
-    }
-
-    count--;
-  }, 1000);
-};
 
 // ✅ Start the HTTP & WebSocket server
 server.listen(PORT, "0.0.0.0", () => {

@@ -59,15 +59,38 @@ wss.on("connection", (ws) => {
   ws.send(JSON.stringify({ type: "lobbies", lobbies: lobbyList }));
   break;
 
+  case "createLobby":
+  console.log("📥 Received createLobby request:", data);
+
+  const lobbyId = Math.random().toString(36).substring(2, 10); // Generate random lobby ID
 
   const newLobby = {
     id: lobbyId,
     host: data.user.uid,
     players: [{ ...data.user, ws }], // Store player WebSocket reference
     messages: [],
-    inProgress: false, // ✅ Track if game is running
+    inProgress: false, 
     round: 0,
-  };  
+  };
+
+  lobbies[lobbyId] = newLobby;
+  console.log(`✅ Lobby created:`, newLobby);
+
+  // Send lobby ID back to the creator
+  ws.send(
+    JSON.stringify({
+      type: "lobbyCreated",
+      lobbyId: lobbyId,
+    })
+  );
+
+  // Broadcast updated lobby list to all players
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ type: "updateLobbies", lobbies: Object.values(lobbies) }));
+    }
+  });
+  break; 
 
     lobbies[lobbyId] = newLobby;
     console.log(`✅ Lobby created:`, newLobby);

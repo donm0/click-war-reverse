@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, Button, StyleSheet, Alert, ActivityIndicator, Image } from "react-native"; // ✅ Import Image
+import { View, Text, TextInput, Button, StyleSheet, Alert, ActivityIndicator, Image, TouchableOpacity } from "react-native"; // ✅ Import Image
 import * as LocalAuthentication from "expo-local-authentication";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { auth, db } from "./firebaseConfig";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, reload } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore"; // ✅ Import getDoc
+import { COLORS } from "../theme/colors"; // Import the theme colors
 
 export default function AuthScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
@@ -128,8 +129,14 @@ export default function AuthScreen({ navigation }: any) {
           <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} autoCapitalize="none" />
           <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
 
-          <Button title="Sign Up" onPress={handleSignUp} />
-          <Button title="Sign In" onPress={() => handleSignIn()} />
+          <TouchableOpacity style={styles.button} onPress={handleSignUp}>
+  <Text style={styles.buttonText}>Sign Up</Text>
+</TouchableOpacity>
+
+<TouchableOpacity style={styles.button} onPress={() => handleSignIn()}>
+  <Text style={styles.buttonText}>Sign In</Text>
+</TouchableOpacity>
+
         </>
       )}
     </View>
@@ -137,14 +144,48 @@ export default function AuthScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
-  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
-  input: { borderWidth: 1, padding: 10, width: "80%", marginBottom: 10 },
-
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.background, // 🔹 Black background
+    padding: 20,
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: "bold",
+    color: COLORS.primary, // 🔹 Gold title text
+    marginBottom: 20,
+  },
+  input: {
+    width: "85%",
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: COLORS.inputBackground, // 🔹 Dark grey input fields
+    color: COLORS.text, // 🔹 Light grey text
+    borderColor: COLORS.border, // 🔹 Subtle grey border
+    borderWidth: 1,
+    marginBottom: 15,
+  },
   profilePic: {
     width: 80,
     height: 80,
     borderRadius: 40,
     marginBottom: 10,
+    borderWidth: 2,
+    borderColor: COLORS.primary, // 🔹 Gold border around profile pic
+  },
+  button: {
+    backgroundColor: COLORS.buttonBackground, // 🔹 Gold button background
+    padding: 12,
+    borderRadius: 8,
+    width: "85%",
+    alignItems: "center",
+    marginVertical: 8,
+  },
+  buttonText: {
+    color: COLORS.buttonText, // 🔹 Black text on gold button
+    fontWeight: "bold",
+    fontSize: 16,
   },
 });

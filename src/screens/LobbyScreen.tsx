@@ -6,6 +6,7 @@ import { useRef, useCallback } from "react"; // ✅ Correct import
 import moment from "moment";
 import { KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from "react-native";
 import { TouchableOpacity } from "react-native";
+import { COLORS } from "../theme/colors";
 
 
 export default function LobbyScreen({ navigation }: any) {
@@ -356,7 +357,9 @@ useEffect(() => {
     onChangeText={setChatMessage}
     onSubmitEditing={sendMessage}
   />
-  <Button title="Send" onPress={sendMessage} />
+  <TouchableOpacity style={styles.button} onPress={sendMessage}>
+  <Text style={styles.buttonText}>Send</Text>
+</TouchableOpacity>
 
   {/* ✅ Only show "Start Game" if the user is the host */}
   {lobbies.find(l => l.id === selectedLobby)?.host === auth.currentUser?.uid &&
@@ -364,7 +367,9 @@ useEffect(() => {
   <Button title="Start Game Round" onPress={startGameRound} color="green" />
 )}
 
-  <Button title="Leave Lobby" onPress={leaveLobby} />
+<TouchableOpacity style={styles.button} onPress={leaveLobby}>
+  <Text style={styles.buttonText}>Leave Lobby</Text>
+</TouchableOpacity>
 </View>
             </View>
           ) : (
@@ -393,23 +398,23 @@ useEffect(() => {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: "#f4f4f4" },
+  container: { flex: 1, padding: 20, backgroundColor: COLORS.black },
   title: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
   lobbyItem: { padding: 10, backgroundColor: "#ddd", marginVertical: 5, borderRadius: 5 },
 
   // ✅ Fix: Chatbox styles
   emptyChatText: { textAlign: "center", color: "#999", marginTop: 10 },
-  chatContainer: { flex: 1, backgroundColor: "#fff", borderRadius: 5, padding: 10, marginBottom: 10,  minHeight: 400, maxHeight: "75%" },
+  chatContainer: { flex: 1, backgroundColor: COLORS.darkGrey, borderRadius: 5, padding: 10, marginBottom: 10, minHeight: 400, maxHeight: "75%" },
   messageContainer: { flexDirection: "row", alignItems: "flex-start", marginBottom: 10 },
   currentUserMessage: { flexDirection: "row-reverse", alignSelf: "flex-end" },
   otherUserMessage: { flexDirection: "row", alignSelf: "flex-start" },  
   profilePic: { width: 40, height: 40, borderRadius: 20, marginRight: 10 },
   messageBubble: { maxWidth: "75%", padding: 10, borderRadius: 10 },
-  currentUserBubble: { backgroundColor: "#007AFF", alignSelf: "flex-end" },
-  otherUserBubble: { backgroundColor: "#E5E5EA", alignSelf: "flex-start" },
-  chatSender: { fontWeight: "bold" },
-  chatText: { color: "#333" },
-  chatInput: { borderWidth: 1, borderColor: "#ccc", padding: 15, borderRadius: 10, marginBottom: 10 },
+  currentUserBubble: { backgroundColor: COLORS.gold, alignSelf: "flex-end" },
+otherUserBubble: { backgroundColor: COLORS.grey, alignSelf: "flex-start" },
+chatText: { color: COLORS.white },
+chatSender: { fontWeight: "bold", color: COLORS.gold },
+chatInput: { borderWidth: 1, borderColor: COLORS.gold, padding: 15, borderRadius: 10, marginBottom: 10, backgroundColor: COLORS.darkGrey, color: COLORS.white },
   currentUserPic: { marginLeft: 10, marginRight: 0 },
   
 
@@ -442,5 +447,8 @@ const styles = StyleSheet.create({
     color: "#FFF",
     opacity: 0.7,
   },
+
+  button: { backgroundColor: COLORS.gold, padding: 12, borderRadius: 8, alignItems: "center", marginTop: 10 },
+buttonText: { color: COLORS.black, fontWeight: "bold", fontSize: 16 },
   
 });

@@ -247,27 +247,34 @@ wss.on("connection", (ws) => {
   
     break;                      
 
-              case "sendMessage":
-  console.log("📩 Received message request:", data);  // ✅ Debug message reception
-
-  if (!lobbies[data.lobbyId]) {
-    console.log(`❌ Lobby ${data.lobbyId} not found.`);
-    return;
-  }
-
-  // Store the message in the lobby
-  lobbies[data.lobbyId].messages.push(data.message);
-  console.log(`✅ Message stored in lobby ${data.lobbyId}:`, data.message);  // ✅ Confirm message storage
-
-  // ✅ Broadcast message to all players in the lobby
-  broadcastToLobby(data.lobbyId, { 
-    type: "message",
-    lobbyId: data.lobbyId,
-    message: data.message 
-  });
-
-  console.log(`✅ Broadcasted message to lobby ${data.lobbyId}:`, data.message); // ✅ Confirm broadcast
-  break;            
+    case "sendMessage":
+      console.log("📩 Received message request:", data);
+    
+      if (!lobbies[data.lobbyId]) {
+        console.log(`❌ Lobby ${data.lobbyId} not found.`);
+        return;
+      }
+    
+      // Find the sender in the lobby
+      const sender = lobbies[data.lobbyId].players.find(p => p.uid === data.userId);
+    
+      // ✅ Ensure profile picture is included
+      const newMessage = {
+        sender: sender ? sender.username : "Unknown",
+        text: data.message.text,
+        timestamp: new Date().toISOString(),
+        profilePic: sender ? sender.profilePic || "https://via.placeholder.com/40" : "https://via.placeholder.com/40",
+      };
+    
+      // Store message in lobby
+      lobbies[data.lobbyId].messages.push(newMessage);
+    
+      // ✅ Broadcast updated message to all players
+      broadcastToLobby(data.lobbyId, { type: "message", lobbyId: data.lobbyId, message: newMessage });
+    
+      console.log(`✅ Broadcasted message with profile pic:`, newMessage);
+      break;
+    
 
   case "startGame":
   if (!lobbies[data.lobbyId]) return;

@@ -107,18 +107,18 @@ useEffect(() => {
           sender: data.message.sender,
           text: data.message.text,
           timestamp: data.message.timestamp || new Date().toISOString(),
-          profilePic: data.message.profilePic || "https://via.placeholder.com/40",
+          profilePic: data.message.profilePic || "https://via.placeholder.com/40", // ✅ Ensure profile picture is set
           senderColor: getUsernameColor(data.message.sender),
           isCurrentUser: data.message.sender === auth.currentUser?.displayName,
-          buttons: data.message.buttons || [], // ✅ Store buttons properly
+          buttons: data.message.buttons || [],
         },
       ]);         
-
+    
       // ✅ Auto-scroll to the latest message
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
-    }    
+    }       
   };
 
   ws.addEventListener("message", handleMessage);
@@ -283,9 +283,10 @@ useEffect(() => {
         ]}
       >
         <Image
-          source={{ uri: item.profilePic }}
-          style={[styles.profilePic, item.isCurrentUser ? styles.currentUserPic : null]}
-        />
+  source={{ uri: item.profilePic || "https://via.placeholder.com/40" }} 
+  style={styles.profilePic} 
+  resizeMode="cover" 
+/>
         <View
           style={[
             styles.messageBubble,

@@ -42,6 +42,7 @@ export default function LobbyScreen({ navigation }: any) {
   
     const handleMessage = (event: MessageEvent) => {
       const data = JSON.parse(event.data);
+
       console.log("📩 Received WebSocket Message:", JSON.stringify(data, null, 2));
     
       if (data.type === "lobbyCreated") {
@@ -276,6 +277,10 @@ useEffect(() => {
 
   // ✅ Place this function before the return statement
   const renderChatMessage = useCallback(({ item }: { item: ChatMessage }) => {
+
+    console.log("🖼 Rendering Chat Message for:", item.sender);
+    console.log("👤 Profile Pic Used:", item.profilePic || "❌ No profile pic!");
+    
     return (
       <View
         style={[

@@ -247,27 +247,37 @@ wss.on("connection", (ws) => {
   
     break;                      
 
-              case "sendMessage":
-  console.log("📩 Received message request:", data);  // ✅ Debug message reception
-
-  if (!lobbies[data.lobbyId]) {
-    console.log(`❌ Lobby ${data.lobbyId} not found.`);
-    return;
-  }
-
-  // Store the message in the lobby
-  lobbies[data.lobbyId].messages.push(data.message);
-  console.log(`✅ Message stored in lobby ${data.lobbyId}:`, data.message);  // ✅ Confirm message storage
-
-  // ✅ Broadcast message to all players in the lobby
-  broadcastToLobby(data.lobbyId, { 
-    type: "message",
-    lobbyId: data.lobbyId,
-    message: data.message 
-  });
-
-  console.log(`✅ Broadcasted message to lobby ${data.lobbyId}:`, data.message); // ✅ Confirm broadcast
-  break;            
+    case "sendMessage":
+      console.log("📩 Received message request:", data);  // ✅ Debug message reception
+    
+      if (!lobbies[data.lobbyId]) {
+        console.log(`❌ Lobby ${data.lobbyId} not found.`);
+        return;
+      }
+    
+      // 🔍 Find sender's profile pic from lobby players
+      const senderProfilePic = lobbies[data.lobbyId]?.players.find(p => p.username === data.message.sender)?.profilePic || "https://via.placeholder.com/40";
+    
+      // ✅ Attach profile pic if missing
+      const messageWithPic = {
+        ...data.message,
+        profilePic: data.message.profilePic || senderProfilePic, // Ensure it always has a profile pic
+      };
+    
+      // Store the message in the lobby
+      lobbies[data.lobbyId].messages.push(messageWithPic);
+      console.log(`✅ Message stored in lobby ${data.lobbyId}:`, messageWithPic);  // ✅ Confirm message storage
+    
+      // ✅ Broadcast message to all players in the lobby
+      broadcastToLobby(data.lobbyId, { 
+        type: "message",
+        lobbyId: data.lobbyId,
+        message: messageWithPic 
+      });
+    
+      console.log(`✅ Broadcasted message to lobby ${data.lobbyId}:`, messageWithPic); // ✅ Confirm broadcast
+      break;
+              
 
   case "startGame":
   if (!lobbies[data.lobbyId]) return;

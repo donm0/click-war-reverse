@@ -30,55 +30,54 @@ const broadcastToLobby = (lobbyId, data) => {
 const playGameRound = async (lobbyId) => {
   if (!lobbies[lobbyId]) return;
 
-  console.log(`🎲 Starting Round ${lobbies[lobbyId].round} - Safe Button: ${buttons[safeIndex]}`);
-
   try {
-    lobbies[lobbyId].round += 1; // ✅ Increase round number
+    lobbies[lobbyId].round += 1;
+    console.log(`🔄 Starting Round ${lobbies[lobbyId].round} in ${lobbyId}`);
 
-    // ✅ Step 1: Countdown before the round starts
+    // Step 1: Countdown before the round starts
     for (let count = 5; count > 0; count--) {
       broadcastToLobby(lobbyId, { type: "countdown", count });
       await delay(1000);
     }
 
-    // ✅ Step 2: Set up the round
-    const numButtons = Math.min(5, 3 + Math.floor(lobbies[lobbyId].round / 2)); // Increase button count each round
-    const buttons = Array.from({ length: numButtons }, (_, i) => ["🔵", "🟢", "🔴", "🟡", "🟠"][i]);
+    // Step 2: Generate buttons & safe index
+    const numButtons = Math.min(5, 3 + Math.floor(lobbies[lobbyId].round / 2));
+    const buttons = ["🔵", "🟢", "🔴", "🟡", "🟠"].slice(0, numButtons);
     const safeIndex = Math.floor(Math.random() * numButtons);
 
     lobbies[lobbyId].safeIndex = safeIndex;
     lobbies[lobbyId].buttons = buttons;
-
     console.log(`🎲 Round ${lobbies[lobbyId].round}: Safe button is ${buttons[safeIndex]}`);
 
-    // ✅ Step 3: Send game choices to players
+    // Step 3: Send game choices to players
     broadcastToLobby(lobbyId, {
       type: "chooseButton",
       lobbyId,
       message: {
         sender: "Bot 🤖",
+        profilePic: "https://i.imgur.com/RIEHDLC.jpeg",
         text: `🎲 **Round ${lobbies[lobbyId].round}** - Pick a button!`,
         buttons,
       },
     });
 
-    // ✅ Step 4: Wait for player choices
+    // Step 4: Wait for player choices
     await delay(6000);
 
-    // ✅ Step 5: Reveal results
+    // Step 5: Reveal results
     const correctButton = buttons[safeIndex];
     broadcastToLobby(lobbyId, {
       type: "gameResult",
       lobbyId,
       message: {
         sender: "Bot 🤖",
+        profilePic: "https://i.imgur.com/RIEHDLC.jpeg",
         text: `🚨 **Round ${lobbies[lobbyId].round} Over!** The safe button was **${correctButton}**!`,
       },
     });
 
-    // ✅ Step 6: Continue to the next round if there are still players
+    // Step 6: Continue to the next round if there are still players
     setTimeout(() => playGameRound(lobbyId), 3000);
-
   } catch (error) {
     console.error("❌ Error in game round:", error);
   }
@@ -287,20 +286,31 @@ wss.on("connection", (ws) => {
       break;
               
 
-  case "startGame":
-  if (!lobbies[data.lobbyId]) return;
-
-  if (lobbies[data.lobbyId].inProgress) {
-    console.warn(`⚠️ Game in ${data.lobbyId} already started.`);
-    return;
-  }
-
-  lobbies[data.lobbyId].inProgress = true;
-  console.log(`🎮 Game started in ${data.lobbyId}`);
-
-  // ✅ Start the game asynchronously
-  playGameRound(data.lobbyId);
-  break;
+      case "startGame":
+        if (!lobbies[data.lobbyId]) {
+          console.warn(`⚠️ Attempted to start a game in non-existent lobby: ${data.lobbyId}`);
+          return;
+        }
+      
+        if (lobbies[data.lobbyId].inProgress) {
+          console.warn(`⚠️ Game in ${data.lobbyId} already started.`);
+          return;
+        }
+      
+        console.log(`🎮 Game started in ${data.lobbyId}`);
+      
+        // ✅ Initialize lives if not already set
+        if (!lobbies[data.lobbyId].playerLives) {
+          lobbies[data.lobbyId].playerLives = {};
+          for (const player of lobbies[data.lobbyId].players) {
+            lobbies[data.lobbyId].playerLives[player.uid] = 3; // Set initial lives
+          }
+          console.log(`❤️ Initialized player lives:`, lobbies[data.lobbyId].playerLives);
+        }
+      
+        // ✅ Start the game asynchronously
+        playGameRound(data.lobbyId);
+        break;      
 
   case "playerChoice":
   if (!lobbies[data.lobbyId]) return;

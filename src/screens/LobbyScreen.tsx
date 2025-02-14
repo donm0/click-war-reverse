@@ -200,6 +200,7 @@ useEffect(() => {
     sender: auth.currentUser?.displayName || "Player",
     text: chatMessage,
     timestamp: new Date().toISOString(), // ✅ Add timestamp
+    profilePic: auth.currentUser?.photoURL || "https://via.placeholder.com/40", // ✅ Include Profile Pic
   },
 };
   

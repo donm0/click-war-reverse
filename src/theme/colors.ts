@@ -12,5 +12,6 @@ export const COLORS = {
     gold: "#FFD700", // Gold accent color
     black: "#000000", // Black background
     white: "#FFFFFF", // White text
+    lightGrey: "#B0B0B0"
   };
   

@@ -335,7 +335,7 @@ useEffect(() => {
         <View style={{ flex: 1 }}>
           {selectedLobby ? (
             <View style={{ flex: 1, justifyContent: "space-between" }}>
-              <Text style={styles.title}>Lobby Chat</Text>
+              <Text style={styles.title}>Chat It Up and Play</Text>
   
               <View style={[styles.chatContainer, { flex: 1 }]}>
                 <FlatList
@@ -352,19 +352,20 @@ useEffect(() => {
               <View style={{ paddingBottom: 10 }}>
   <TextInput
     style={styles.chatInput}
-    placeholder="Type a message..."
+    placeholder="Type Here mf..."
+    placeholderTextColor={COLORS.lightGrey}
     value={chatMessage}
     onChangeText={setChatMessage}
     onSubmitEditing={sendMessage}
   />
   <TouchableOpacity style={styles.button} onPress={sendMessage}>
-  <Text style={styles.buttonText}>Send</Text>
+  <Text style={styles.buttonText}> Send Message</Text>
 </TouchableOpacity>
 
   {/* ✅ Only show "Start Game" if the user is the host */}
   {lobbies.find(l => l.id === selectedLobby)?.host === auth.currentUser?.uid &&
  !lobbies.find(l => l.id === selectedLobby)?.inProgress && ( // ✅ Hide button once game starts
-  <Button title="Start Game Round" onPress={startGameRound} color="green" />
+  <Button title="Start Game" onPress={startGameRound} color="black" />
 )}
 
 <TouchableOpacity style={styles.button} onPress={leaveLobby}>
@@ -416,7 +417,7 @@ const styles = StyleSheet.create({
   otherUserMessage: { flexDirection: "row", alignSelf: "flex-start" },  
   profilePic: { width: 40, height: 40, borderRadius: 20, marginRight: 10 },
   messageBubble: { maxWidth: "75%", padding: 12, borderRadius: 16, borderBottomLeftRadius: 4, shadowColor: COLORS.gold, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 5, elevation: 3 },
-  currentUserBubble: { backgroundColor: COLORS.gold, alignSelf: "flex-end" },
+  currentUserBubble: { backgroundColor: COLORS.black, alignSelf: "flex-end" },
 otherUserBubble: { backgroundColor: COLORS.grey, alignSelf: "flex-start" },
 chatText: { color: COLORS.white },
 chatSender: { fontWeight: "bold", color: COLORS.gold },
@@ -427,20 +428,21 @@ chatInputContainer: {
   paddingVertical: 8,
   borderTopWidth: 1,
   borderTopColor: COLORS.gold,
-  backgroundColor: COLORS.darkGrey,
+  backgroundColor: COLORS.white,
   position: "absolute",
   bottom: 0,
   width: "100%",
 },
 
 chatInput: {
-  flex: 1,
   borderWidth: 0,
-  padding: 12,
+  paddingHorizontal: 12,
+  paddingVertical: 10,
   borderRadius: 20,
   backgroundColor: COLORS.grey,
   color: COLORS.white,
-  fontSize: 16,
+  fontSize: 12,
+  height: 30,
 },
 
   currentUserPic: { marginLeft: 10, marginRight: 0 },

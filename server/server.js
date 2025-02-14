@@ -30,6 +30,8 @@ const broadcastToLobby = (lobbyId, data) => {
 const playGameRound = async (lobbyId) => {
   if (!lobbies[lobbyId]) return;
 
+  console.log(`🎲 Starting Round ${lobbies[lobbyId].round} - Safe Button: ${buttons[safeIndex]}`);
+
   try {
     lobbies[lobbyId].round += 1; // ✅ Increase round number
 
@@ -303,22 +305,34 @@ wss.on("connection", (ws) => {
   case "playerChoice":
   if (!lobbies[data.lobbyId]) return;
 
+  console.log(`📩 Player Choice: ${userId} picked ${buttons[choice]}`);
+
   const { userId, choice } = data;
   const safeIndex = lobbies[data.lobbyId].safeIndex;
   const buttons = lobbies[data.lobbyId].buttons;
 
+  console.log(`📩 Player ${userId} chose ${buttons[choice]}. Safe button: ${buttons[safeIndex]}`);
+
+  // Ensure playerLives is initialized
+  if (!lobbies[data.lobbyId].playerLives) {
+    lobbies[data.lobbyId].playerLives = {};
+  }
+
+  if (!lobbies[data.lobbyId].playerLives[userId]) {
+    lobbies[data.lobbyId].playerLives[userId] = 3; // Default 3 lives
+  }
+
+  let remainingLives = lobbies[data.lobbyId].playerLives[userId];
+
   // Check if the player survived
   const survived = choice === safeIndex;
-  let remainingLives = lobbies[data.lobbyId].playerLives[userId];
 
   if (!survived) {
     remainingLives--; // Lose a life if incorrect choice
+    lobbies[data.lobbyId].playerLives[userId] = remainingLives;
   }
 
-  // Update player lives
-  lobbies[data.lobbyId].playerLives[userId] = remainingLives;
-
-  console.log(`📩 Player ${userId} chose ${buttons[choice]}. Safe button: ${buttons[safeIndex]}`);
+  console.log(`🔥 ${userId} Lives Remaining: ${remainingLives}`);
 
   // ✅ Send ephemeral message to the player
   const player = lobbies[data.lobbyId].players.find(p => p.uid === userId);
@@ -345,6 +359,9 @@ wss.on("connection", (ws) => {
   // ✅ Announce eliminated players
   const eliminatedPlayers = lobbies[data.lobbyId].players.filter(player => lobbies[data.lobbyId].playerLives[player.uid] <= 0);
   eliminatedPlayers.forEach(player => {
+
+    console.log(`💀 Eliminated: ${eliminatedPlayers.map(p => p.username).join(", ")}`);
+
     broadcastToLobby(data.lobbyId, {
       type: "message",
       lobbyId: data.lobbyId,
@@ -360,6 +377,9 @@ wss.on("connection", (ws) => {
 
   // ✅ Check if game is over
   if (lobbies[data.lobbyId].players.length === 1) {
+
+    console.log(`🏆 Game Over - Winner: ${winner.username}`);
+
     const winner = lobbies[data.lobbyId].players[0];
     broadcastToLobby(data.lobbyId, {
       type: "gameOver",
@@ -370,6 +390,7 @@ wss.on("connection", (ws) => {
     setTimeout(() => playGameRound(data.lobbyId), 3000); // Start new round
   }
   break;
+
 
 case "nextRound":
   if (!lobbies[data.lobbyId]) return;

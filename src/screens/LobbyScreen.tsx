@@ -7,7 +7,7 @@ import moment from "moment";
 import { KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from "react-native";
 import { TouchableOpacity } from "react-native";
 import { COLORS } from "../theme/colors";
-
+import { Alert } from "react-native";
 
 export default function LobbyScreen({ navigation }: any) {
   const [lobbies, setLobbies] = useState<any[]>([]);
@@ -95,6 +95,7 @@ useEffect(() => {
       setSelectedLobby(data.lobbyId);
     }
 
+    // ✅ Handle Standard Chat Messages
     if (data.type === "message" && data.lobbyId === selectedLobbyRef.current) {
       if (!data.message) {
         console.warn("⚠️ Received a message event with no message data!");
@@ -120,14 +121,43 @@ useEffect(() => {
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
-    }    
+    }
+
+    // ✅ Handle Ephemeral Messages (e.g., "You survived" or "You lost a life!")
+    if (data.type === "ephemeralMessage") {
+      console.log("👀 Ephemeral Message for Player:", data.message.text);
+      Alert.alert("Game Update", data.message.text); // Show as a popup
+    }
+
+    // ✅ Handle Button Reveal (after choices)
+    if (data.type === "revealButtons") {
+      console.log("🎭 Revealing Buttons:", data.buttons);
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        {
+          sender: "Bot 🤖",
+          text: "🔍 The results are in!",
+          timestamp: new Date().toISOString(),
+          buttons: data.buttons, // ✅ Display buttons in the chat
+          profilePic: "https://i.imgur.com/RIEHDLC.jpeg",
+        },
+      ]);
+    }
+
+    // ✅ Handle Game Over Message
+    if (data.type === "gameOver") {
+      console.log("🏆 GAME OVER! Winner:", data.winner);
+      Alert.alert("Game Over", `${data.winner} has won the game!`);
+      setSelectedLobby(null); // Exit the lobby
+    }
   };
 
   ws.addEventListener("message", handleMessage);
   return () => {
     ws.removeEventListener("message", handleMessage);
   };
-}, [ws]); // ✅ Removed `selectedLobby` dependency
+}, [ws]); // ✅ Keeps auto-scroll and ensures game messages show correctly
+
 
   // ✅ Create a new lobby
   const createLobby = () => {

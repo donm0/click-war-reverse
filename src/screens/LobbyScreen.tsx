@@ -373,23 +373,29 @@ useEffect(() => {
 </View>
             </View>
           ) : (
-            <View style={{ flex: 1, justifyContent: "center" }}>
-              <Text style={styles.title}>Click War Reverse Lobbies</Text>
-              <Button title="Create Lobby" onPress={createLobby} />
-              <FlatList
-                data={lobbies}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item }) => (
-                  <View style={styles.lobbyItem}>
-                    <Text>Lobby ID: {item.id}</Text>
-                    {item.players?.map((player: any) => (
-                      <Text key={`${item.id}-player-${player.uid}`}>• {player.username || "Unknown Player"}</Text>
-                    ))}
-                    <Button title="Join Lobby" onPress={() => joinLobby(item.id)} />
-                  </View>
-                )}
-              />
-            </View>
+            <View style={styles.lobbyContainer}>
+  <Text style={styles.title}>🏆 Available Lobbies</Text>
+
+  <TouchableOpacity style={styles.createLobbyButton} onPress={createLobby}>
+    <Text style={styles.createLobbyButtonText}>➕ Create Lobby</Text>
+  </TouchableOpacity>
+
+  <FlatList
+    data={lobbies}
+    keyExtractor={(item) => item.id.toString()}
+    renderItem={({ item }) => (
+      <TouchableOpacity style={styles.lobbyItem} onPress={() => joinLobby(item.id)}>
+        <Text style={styles.lobbyIdText}>🔹 Lobby ID: {item.id}</Text>
+        {item.players?.map((player: any) => (
+          <Text key={`${item.id}-player-${player.uid}`} style={styles.lobbyPlayerText}>
+            • {player.username || "Unknown Player"}
+          </Text>
+        ))}
+      </TouchableOpacity>
+    )}
+  />
+</View>
+
           )}
         </View>
       </TouchableWithoutFeedback>
@@ -399,22 +405,44 @@ useEffect(() => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: COLORS.black },
-  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
-  lobbyItem: { padding: 10, backgroundColor: "#ddd", marginVertical: 5, borderRadius: 5 },
+  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20, color: COLORS.gold, textAlign: "center" },
+  lobbyContainer: { flex: 1, padding: 20, backgroundColor: COLORS.black }, // ✅ Add this
 
   // ✅ Fix: Chatbox styles
   emptyChatText: { textAlign: "center", color: "#999", marginTop: 10 },
   chatContainer: { flex: 1, backgroundColor: COLORS.darkGrey, borderRadius: 5, padding: 10, marginBottom: 10, minHeight: 400, maxHeight: "75%" },
-  messageContainer: { flexDirection: "row", alignItems: "flex-start", marginBottom: 10 },
+  messageContainer: { flexDirection: "row", alignItems: "center", marginBottom: 12, paddingHorizontal: 8 },
   currentUserMessage: { flexDirection: "row-reverse", alignSelf: "flex-end" },
   otherUserMessage: { flexDirection: "row", alignSelf: "flex-start" },  
   profilePic: { width: 40, height: 40, borderRadius: 20, marginRight: 10 },
-  messageBubble: { maxWidth: "75%", padding: 10, borderRadius: 10 },
+  messageBubble: { maxWidth: "75%", padding: 12, borderRadius: 16, borderBottomLeftRadius: 4, shadowColor: COLORS.gold, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 5, elevation: 3 },
   currentUserBubble: { backgroundColor: COLORS.gold, alignSelf: "flex-end" },
 otherUserBubble: { backgroundColor: COLORS.grey, alignSelf: "flex-start" },
 chatText: { color: COLORS.white },
 chatSender: { fontWeight: "bold", color: COLORS.gold },
-chatInput: { borderWidth: 1, borderColor: COLORS.gold, padding: 15, borderRadius: 10, marginBottom: 10, backgroundColor: COLORS.darkGrey, color: COLORS.white },
+chatInputContainer: {
+  flexDirection: "row",
+  alignItems: "center",
+  paddingHorizontal: 10,
+  paddingVertical: 8,
+  borderTopWidth: 1,
+  borderTopColor: COLORS.gold,
+  backgroundColor: COLORS.darkGrey,
+  position: "absolute",
+  bottom: 0,
+  width: "100%",
+},
+
+chatInput: {
+  flex: 1,
+  borderWidth: 0,
+  padding: 12,
+  borderRadius: 20,
+  backgroundColor: COLORS.grey,
+  color: COLORS.white,
+  fontSize: 16,
+},
+
   currentUserPic: { marginLeft: 10, marginRight: 0 },
   
 
@@ -450,5 +478,42 @@ chatInput: { borderWidth: 1, borderColor: COLORS.gold, padding: 15, borderRadius
 
   button: { backgroundColor: COLORS.gold, padding: 12, borderRadius: 8, alignItems: "center", marginTop: 10 },
 buttonText: { color: COLORS.black, fontWeight: "bold", fontSize: 16 },
-  
+
+createLobbyButton: {
+  backgroundColor: COLORS.gold,
+  paddingVertical: 12,
+  borderRadius: 10,
+  alignItems: "center",
+  marginBottom: 15,
+},
+
+createLobbyButtonText: {
+  fontSize: 18,
+  fontWeight: "bold",
+  color: COLORS.black,
+},
+
+lobbyItem: {
+  backgroundColor: COLORS.darkGrey,
+  padding: 15,
+  borderRadius: 10,
+  marginBottom: 10,
+  shadowColor: COLORS.gold,
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.6,
+  shadowRadius: 3,
+  elevation: 5,
+},
+
+lobbyIdText: {
+  fontSize: 18,
+  fontWeight: "bold",
+  color: COLORS.gold,
+},
+
+lobbyPlayerText: {
+  fontSize: 16,
+  color: COLORS.white,
+},
+
 });

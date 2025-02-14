@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, Button, Image, StyleSheet } from "react-native";
+import { View, Text, Button, Image, StyleSheet, Alert } from "react-native";
 import { auth, db } from "./firebaseConfig";
 import * as ImagePicker from "expo-image-picker";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -7,7 +7,7 @@ import { updateProfile } from "firebase/auth";
 import { doc, updateDoc } from "firebase/firestore";
 
 export default function ProfileScreen({ navigation }: any) {
-  const [profilePic, setProfilePic] = useState(auth.currentUser?.photoURL || "https://via.placeholder.com/40");
+  const [profilePic, setProfilePic] = useState(auth.currentUser?.photoURL || "https://via.placeholder.com/100");
 
   // 🔹 Pick Image
   const pickImage = async () => {
@@ -37,7 +37,10 @@ export default function ProfileScreen({ navigation }: any) {
       await updateProfile(auth.currentUser!, { photoURL: url });
       await updateDoc(doc(db, "users", auth.currentUser!.uid), { profilePic: url });
 
-      alert("Profile updated successfully!");
+      Alert.alert("Profile updated successfully!");
+
+      // ✅ Navigate to the Lobby after profile setup
+      navigation.reset({ index: 0, routes: [{ name: "Lobby" }] });
     } catch (error) {
       console.error("Upload failed:", error);
     }
@@ -48,7 +51,7 @@ export default function ProfileScreen({ navigation }: any) {
       <Text style={styles.title}>Profile Settings</Text>
       <Image source={{ uri: profilePic }} style={styles.profilePic} />
       <Button title="Change Profile Picture" onPress={pickImage} />
-      <Button title="Go to Lobby" onPress={() => navigation.navigate("Lobby")} />
+      <Button title="Go to Lobby" onPress={() => navigation.reset({ index: 0, routes: [{ name: "Lobby" }] })} />
     </View>
   );
 }

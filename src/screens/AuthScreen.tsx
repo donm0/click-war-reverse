@@ -53,65 +53,59 @@ export default function AuthScreen({ navigation }: any) {
         Alert.alert("Error", "Please enter a username.");
         return;
       }
-
+  
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const newUser = userCredential.user;
-
-      // 🔹 Auto-generate profile picture using RoboHash (Cat Avatars)
+  
+      // ✅ Generate a default profile picture (RoboHash Cat Avatars)
       const profilePicUrl = `https://robohash.org/${newUser.uid}.png?set=set4`;
-
-      // ✅ Update Firebase Auth profile with displayName & profilePic
+  
+      // ✅ Update Firebase Auth profile
       await updateProfile(newUser, { displayName: username, photoURL: profilePicUrl });
-      console.log("✅ Firebase displayName set:", newUser.displayName);
-
-      // Save user info to Firestore
+  
+      // ✅ Save user info to Firestore
       await setDoc(doc(db, "users", newUser.uid), {
         uid: newUser.uid,
         email: newUser.email,
         username: username,
-        profilePic: profilePicUrl, // ✅ Save profile picture to Firestore
+        profilePic: profilePicUrl,
         createdAt: new Date(),
       });
-
+  
       await saveCredentials(email, password); // ✅ Save login for biometric use
-      navigation.reset({ index: 0, routes: [{ name: "Lobby" }] });
+  
+      // ✅ Navigate to ProfileScreen if user needs to pick a custom image
+      navigation.reset({ index: 0, routes: [{ name: "ProfileScreen" }] });
     } catch (error: any) {
       Alert.alert("Error", error.message);
     }
   };
+  
 
   // 🔹 Sign In Function
   const handleSignIn = async (emailInput?: string, passwordInput?: string) => {
     try {
       const userEmail = emailInput || email;
       const userPassword = passwordInput || password;
-
+  
       const userCredential = await signInWithEmailAndPassword(auth, userEmail, userPassword);
       const loggedInUser = userCredential.user;
-
-      // ✅ Force refresh to ensure displayName is loaded
-      await reload(loggedInUser);
+  
+      await reload(loggedInUser); // 🔄 Refresh user data
       console.log("🔄 Refreshed Firebase User:", auth.currentUser);
-
-      // 🔹 Ensure profile picture exists for old users
-      const userDoc = await getDoc(doc(db, "users", loggedInUser.uid));
-      if (userDoc.exists() && userDoc.data().profilePic) {
-        console.log("✅ Profile picture found:", userDoc.data().profilePic);
-        setProfilePic(userDoc.data().profilePic);
-      } else {
-        console.log("🚀 Assigning new profile picture...");
-        const newProfilePic = `https://robohash.org/${loggedInUser.uid}.png?set=set4`;
-        await updateProfile(loggedInUser, { photoURL: newProfilePic });
-        await setDoc(doc(db, "users", loggedInUser.uid), { profilePic: newProfilePic }, { merge: true });
-        setProfilePic(newProfilePic);
-      }
-
+  
       await saveCredentials(userEmail, userPassword); // ✅ Save login for biometric use
-      navigation.reset({ index: 0, routes: [{ name: "Lobby" }] });
+  
+      // ✅ Check if the user has a profile picture
+      if (loggedInUser.photoURL) {
+        navigation.reset({ index: 0, routes: [{ name: "Lobby" }] });
+      } else {
+        navigation.reset({ index: 0, routes: [{ name: "ProfileScreen" }] });
+      }
     } catch (error: any) {
       Alert.alert("Error", error.message);
     }
-  };
+  };  
 
   return (
     <View style={styles.container}>

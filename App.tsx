@@ -3,7 +3,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import AuthScreen from "./src/screens/AuthScreen"; 
 import LobbyScreen from "./src/screens/LobbyScreen";
-import ProfileScreen from "./src/screens/ProfileScreen"; // ✅ Import Profile Screen
+import ProfileScreen from "./src/screens/ProfileScreen"; 
 import { WebSocketProvider } from "./src/context/WebSocketProvider";
 
 const Stack = createStackNavigator();
@@ -14,10 +14,10 @@ export default function App() {
   return (
     <WebSocketProvider>
       <NavigationContainer>
-        <Stack.Navigator>
-          <Stack.Screen name="Auth" component={AuthScreen} options={{ title: "Login" }} />
-          <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: "Profile Setup" }} /> 
-          <Stack.Screen name="Lobby" component={LobbyScreen} options={{ title: "Lobbies" }} />
+        <Stack.Navigator initialRouteName="Auth" screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="Auth" component={AuthScreen} />
+          <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
+          <Stack.Screen name="Lobby" component={LobbyScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </WebSocketProvider>

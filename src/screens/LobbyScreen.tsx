@@ -278,10 +278,13 @@ useEffect(() => {
 
   // ✅ Place this function before the return statement
   const renderChatMessage = useCallback(({ item }: { item: ChatMessage }) => {
-
+    // ✅ Explicitly set the bot's profile picture if sender is "Bot 🤖"
+    const profilePic =
+      item.sender === "Bot 🤖" ? "https://i.imgur.com/RIEHDLC.jpeg" : item.profilePic;
+  
     console.log("🖼 Rendering Chat Message for:", item.sender);
-    console.log("👤 Profile Pic Used:", item.profilePic || "❌ No profile pic!");
-    
+    console.log("👤 Profile Pic Used:", profilePic || "❌ No profile pic!");
+  
     return (
       <View
         style={[
@@ -290,7 +293,7 @@ useEffect(() => {
         ]}
       >
         <Image
-          source={{ uri: item.profilePic }}
+          source={{ uri: profilePic }}
           style={[styles.profilePic, item.isCurrentUser ? styles.currentUserPic : null]}
         />
         <View
@@ -330,7 +333,8 @@ useEffect(() => {
         </View>
       </View>
     );
-  }, []);  
+  }, []);
+    
 
   return (
     <KeyboardAvoidingView 

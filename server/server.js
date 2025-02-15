@@ -261,7 +261,12 @@ wss.on("connection", (ws) => {
     
  // ✅ If sender is the bot, set the bot's profile picture
  if (data.message.sender === "Bot 🤖") {
+  let senderProfilePic = lobbies[data.lobbyId]?.players.find(p => p.username === data.message.sender)?.profilePic || "https://via.placeholder.com/40";
+
+// If the sender is the bot, use the bot's profile picture
+if (data.message.sender === "Bot 🤖") {
   senderProfilePic = "https://i.imgur.com/RIEHDLC.jpeg";
+}
 }
 
 

@@ -303,7 +303,10 @@ useEffect(() => {
   };  
 
   const chooseButton = (buttonIndex: number) => {
-    if (!selectedLobby) return;
+    if (!selectedLobby) {
+      console.warn("⚠️ No lobby selected. Cannot send choice.");
+      return;
+    }
   
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       console.error("❌ WebSocket not connected! Cannot send choice.");
@@ -318,13 +321,12 @@ useEffect(() => {
       choice: buttonIndex,
     };
   
-    console.log("📤 Sending Choice to WebSocket:", choiceMessage);
+    console.log("📤 Sending Choice to WebSocket:", choiceMessage); // ✅ Debugging log
     ws.send(JSON.stringify(choiceMessage));
-  };   
+  };  
 
   // ✅ Place this function before the return statement
   const renderChatMessage = useCallback(({ item }: { item: ChatMessage }) => {
-    // ✅ Explicitly set the bot's profile picture if sender is "Bot 🤖"
     const profilePic =
       item.sender === "Bot 🤖" ? "https://i.imgur.com/RIEHDLC.jpeg" : item.profilePic;
   
@@ -359,29 +361,28 @@ useEffect(() => {
   
           <Text style={styles.chatText}>{item.text}</Text>
   
-          {/* ✅ Render Buttons If Available */}
-          {item.buttons && Array.isArray(item.buttons) && selectedLobby && (
-  <View style={styles.buttonContainer}>
-    {item.buttons.map((button: string, index: number) => (
-      <TouchableOpacity
-        key={index}
-        style={[
-          styles.gameButton,
-          button === "safe" ? styles.safeButton : styles.trapButton,
-        ]}
-        onPress={() => chooseButton(index)}
-      >
-        <Text style={styles.gameButtonText}>{button}</Text>
-      </TouchableOpacity>
-    ))}
-  </View>
-)}
+          {/* ✅ Fix: Ensure Buttons Render Properly */}
+          {item.buttons && Array.isArray(item.buttons) && item.buttons.length > 0 && (
+            <View style={styles.buttonContainer}>
+              {item.buttons.map((button: string, index: number) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.gameButton,
+                    index === 0 ? styles.safeButton : styles.trapButton, // Differentiate buttons
+                  ]}
+                  onPress={() => chooseButton(index)} // ✅ Ensure function is called
+                >
+                  <Text style={styles.gameButtonText}>{button}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
+          )}
         </View>
+      </View>
     );
-  }, []);
+  }, []);  
     
-
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === "ios" ? "padding" : "height"} 

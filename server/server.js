@@ -51,15 +51,15 @@ const playGameRound = async (lobbyId) => {
 
     // Step 3: Send game choices to players
     broadcastToLobby(lobbyId, {
-      type: "chooseButton",
+      type: "message",  // ✅ Ensure it's handled as a normal message
       lobbyId,
       message: {
         sender: "Bot 🤖",
         profilePic: "https://i.imgur.com/RIEHDLC.jpeg",
         text: `🎲 **Round ${lobbies[lobbyId].round}** - Pick a button!`,
-        buttons,
+        buttons,  // ✅ Ensures buttons appear in chat
       },
-    });
+    });    
 
     // Step 4: Wait for player choices
     await delay(6000);
@@ -309,95 +309,98 @@ if (data.message.sender === "Bot 🤖") {
         break;      
 
         case "playerChoice":
-          console.log("📩 Received playerChoice event:", data);
-          if (!lobbies[data.lobbyId]) return;
-        
-          const { userId, choice } = data;
-          const { safeIndex, buttons } = lobbies[data.lobbyId];
-        
-          console.log(`📩 Player ${userId} chose ${buttons[choice]}. Safe button: ${buttons[safeIndex]}`);
-        
-          // Initialize lives
-          lobbies[data.lobbyId].playerLives ??= {};
-          lobbies[data.lobbyId].playerLives[userId] ??= 3;
-        
-          // Store choice
-          lobbies[data.lobbyId].playerChoices ??= {};
-          lobbies[data.lobbyId].playerChoices[userId] = choice;
-        
-          // Check if all players have made a choice
-          const allPlayersChosen = lobbies[data.lobbyId].players.length === 
-            Object.keys(lobbies[data.lobbyId].playerChoices).length;
-        
-          console.log(`📊 Player Choices So Far:`, lobbies[data.lobbyId].playerChoices);
-          console.log(`📊 Have all players chosen? ${allPlayersChosen ? "✅ Yes" : "❌ No"}`);
-        
-          if (!allPlayersChosen) return; // Wait until everyone has chosen
-        
-          // Process results
-          let eliminatedPlayers = [];
-        
-          lobbies[data.lobbyId].players.forEach((player) => {
-            const playerChoice = lobbies[data.lobbyId].playerChoices[player.uid];
-        
-            if (playerChoice !== safeIndex) {
-              lobbies[data.lobbyId].playerLives[player.uid] -= 1;
-        
-              if (lobbies[data.lobbyId].playerLives[player.uid] <= 0) {
-                console.log(`💀 ${player.username} is eliminated!`);
-                eliminatedPlayers.push(player);
-              }
-            }
-          });
-        
-          console.log(`🔥 Lives After Round:`, lobbies[data.lobbyId].playerLives);
-        
-          // Reveal results to all players
-          broadcastToLobby(data.lobbyId, {
-            type: "gameResult",
-            lobbyId: data.lobbyId,
-            message: {
-              sender: "Bot 🤖",
-              profilePic: "https://i.imgur.com/RIEHDLC.jpeg",
-              text: `🚨 **Round Over!** The safe button was **${buttons[safeIndex]}**!`,
-            },
-          });
-        
-          // Announce eliminated players
-          eliminatedPlayers.forEach(player => {
-            broadcastToLobby(data.lobbyId, {
-              type: "message",
-              lobbyId: data.lobbyId,
-              message: {
-                sender: "Bot 🤖",
-                text: `💀 ${player.username} has been eliminated!`,
-              },
-            });
-          });
-        
-          // Remove eliminated players
-          lobbies[data.lobbyId].players = lobbies[data.lobbyId].players.filter(
-            player => !eliminatedPlayers.includes(player)
-          );
-        
-          // Reset choices for the next round
-          delete lobbies[data.lobbyId].playerChoices;
-        
-          // Check if game is over
-          if (lobbies[data.lobbyId].players.length === 1) {
-            const winner = lobbies[data.lobbyId].players[0]; 
-            console.log(`🏆 Game Over - Winner: ${winner.username}`);
-        
-            broadcastToLobby(data.lobbyId, {
-              type: "gameOver",
-              winner: winner.username,
-            });
-        
-            delete lobbies[data.lobbyId]; // Reset the lobby
-          } else {
-            setTimeout(() => playGameRound(data.lobbyId), 3000); // Start next round
-          }
-          break;        
+  console.log("📩 Received playerChoice event:", data);
+
+  if (!lobbies[data.lobbyId]) {
+    console.error(`❌ Lobby ${data.lobbyId} not found.`);
+    return;
+  }
+
+  const { userId, choice } = data;
+  const { safeIndex, buttons } = lobbies[data.lobbyId];
+
+  console.log(`📩 Player ${userId} chose ${buttons[choice]}. Safe button: ${buttons[safeIndex]}`);
+
+  // Initialize lives if not already set
+  lobbies[data.lobbyId].playerLives ??= {};
+  lobbies[data.lobbyId].playerLives[userId] ??= 3;
+
+  // Store choice
+  lobbies[data.lobbyId].playerChoices ??= {};
+  lobbies[data.lobbyId].playerChoices[userId] = choice;
+
+  console.log(`📊 Player Choices So Far:`, lobbies[data.lobbyId].playerChoices);
+
+  const allPlayersChosen = lobbies[data.lobbyId].players.length === 
+    Object.keys(lobbies[data.lobbyId].playerChoices).length;
+
+  console.log(`📊 Have all players chosen? ${allPlayersChosen ? "✅ Yes" : "❌ No"}`);
+
+  if (!allPlayersChosen) return;
+
+  // Process results
+  let eliminatedPlayers = [];
+
+  lobbies[data.lobbyId].players.forEach((player) => {
+    const playerChoice = lobbies[data.lobbyId].playerChoices[player.uid];
+
+    if (playerChoice !== safeIndex) {
+      lobbies[data.lobbyId].playerLives[player.uid] -= 1;
+
+      if (lobbies[data.lobbyId].playerLives[player.uid] <= 0) {
+        console.log(`💀 ${player.username} is eliminated!`);
+        eliminatedPlayers.push(player);
+      }
+    }
+  });
+
+  console.log(`🔥 Lives After Round:`, lobbies[data.lobbyId].playerLives);
+
+  // Reveal results to all players
+  broadcastToLobby(data.lobbyId, {
+    type: "gameResult",
+    lobbyId: data.lobbyId,
+    message: {
+      sender: "Bot 🤖",
+      text: `🚨 **Round Over!** The safe button was **${buttons[safeIndex]}**!`,
+    },
+  });
+
+  // Announce eliminated players
+  eliminatedPlayers.forEach(player => {
+    broadcastToLobby(data.lobbyId, {
+      type: "message",
+      lobbyId: data.lobbyId,
+      message: {
+        sender: "Bot 🤖",
+        text: `💀 ${player.username} has been eliminated!`,
+      },
+    });
+  });
+
+  // Remove eliminated players
+  lobbies[data.lobbyId].players = lobbies[data.lobbyId].players.filter(
+    player => !eliminatedPlayers.includes(player)
+  );
+
+  // Reset choices for the next round
+  delete lobbies[data.lobbyId].playerChoices;
+
+  // Check if game is over
+  if (lobbies[data.lobbyId].players.length === 1) {
+    const winner = lobbies[data.lobbyId].players[0]; 
+    console.log(`🏆 Game Over - Winner: ${winner.username}`);
+
+    broadcastToLobby(data.lobbyId, {
+      type: "gameOver",
+      winner: winner.username,
+    });
+
+    delete lobbies[data.lobbyId]; // Reset the lobby
+  } else {
+    setTimeout(() => playGameRound(data.lobbyId), 3000); // Start next round
+  }
+  break;      
 
 case "nextRound":
   if (!lobbies[data.lobbyId]) return;

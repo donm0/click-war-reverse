@@ -85,7 +85,6 @@ const playGameRound = async (lobbyId) => {
 
 // Handle new connections
 wss.on("connection", (ws) => {
-  console.log("New player connected!");
 
   // 🔹 Send a ping every 25 seconds to keep the connection alive
   const keepAliveInterval = setInterval(() => {
@@ -96,7 +95,6 @@ wss.on("connection", (ws) => {
 
   ws.on("close", () => {
     clearInterval(keepAliveInterval);
-    console.log("Player disconnected.");
   });
   
 
@@ -113,12 +111,10 @@ wss.on("connection", (ws) => {
     round: lobby.round,
   }));
 
-  console.log("📢 Sending lobbies:", lobbyList); // ✅ Log clean lobby data
   ws.send(JSON.stringify({ type: "lobbies", lobbies: lobbyList }));
   break;
 
   case "createLobby":
-  console.log("📥 Received createLobby request:", data);
 
   const lobbyId = Math.random().toString(36).substring(2, 10); // Generate random lobby ID
 
@@ -132,7 +128,6 @@ wss.on("connection", (ws) => {
   };
 
   lobbies[lobbyId] = newLobby;
-  console.log(`✅ Lobby created:`, newLobby);
 
   // Send lobby ID back to the creator
   ws.send(
@@ -151,7 +146,7 @@ wss.on("connection", (ws) => {
   break; 
 
     lobbies[lobbyId] = newLobby;
-    console.log(`✅ Lobby created:`, newLobby);
+
 
     // Send the correct lobby ID back to the client
     ws.send(
@@ -249,7 +244,6 @@ wss.on("connection", (ws) => {
     break;                      
 
     case "sendMessage":
-      console.log("📩 Received message request:", data);  // ✅ Debug message reception
     
       if (!lobbies[data.lobbyId]) {
         console.log(`❌ Lobby ${data.lobbyId} not found.`);
@@ -278,7 +272,6 @@ if (data.message.sender === "Bot 🤖") {
     
       // Store the message in the lobby
       lobbies[data.lobbyId].messages.push(messageWithPic);
-      console.log(`✅ Message stored in lobby ${data.lobbyId}:`, messageWithPic);  // ✅ Confirm message storage
     
       // ✅ Broadcast message to all players in the lobby
       broadcastToLobby(data.lobbyId, { 
@@ -286,8 +279,6 @@ if (data.message.sender === "Bot 🤖") {
         lobbyId: data.lobbyId,
         message: messageWithPic 
       });
-    
-      console.log(`✅ Broadcasted message to lobby ${data.lobbyId}:`, messageWithPic); // ✅ Confirm broadcast
       break;
               
 
@@ -318,11 +309,11 @@ if (data.message.sender === "Bot 🤖") {
         break;      
 
   case "playerChoice":
+    console.log("📩 Received playerChoice event:", data);
   if (!lobbies[data.lobbyId]) return;
 
-  console.log(`📩 Player Choice: ${userId} picked ${buttons[choice]}`);
-
-  const { userId, choice } = data;
+  const userId = data.userId; // Ensure this is defined
+  const choice = data.choice;
   const safeIndex = lobbies[data.lobbyId].safeIndex;
   const buttons = lobbies[data.lobbyId].buttons;
 

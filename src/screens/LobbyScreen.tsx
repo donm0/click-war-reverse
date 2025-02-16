@@ -28,8 +28,6 @@ export default function LobbyScreen({ navigation }: any) {
     buttons?: string[]; // ✅ Ensure TypeScript allows buttons
   };    
   
-  console.log("🔍 Rendering LobbyScreen");
-
   useEffect(() => {
     selectedLobbyRef.current = selectedLobby; // ✅ Keep track of selected lobby safely
   }, [selectedLobby]);
@@ -42,8 +40,6 @@ export default function LobbyScreen({ navigation }: any) {
   
     const handleMessage = (event: MessageEvent) => {
       const data = JSON.parse(event.data);
-
-      console.log("📩 Received WebSocket Message:", JSON.stringify(data, null, 2));
     
       if (data.type === "lobbyCreated") {
         console.log("✅ Lobby Created Successfully:", data.lobbyId);
@@ -79,7 +75,6 @@ export default function LobbyScreen({ navigation }: any) {
 
 // ✅ NEW: Separate useEffect to track messages state changes
 useEffect(() => {
-  console.log("📜 Messages state updated:", messages);
 }, [messages]); 
 
 //Handle Messages
@@ -88,7 +83,6 @@ useEffect(() => {
 
   const handleMessage = (event: MessageEvent) => {
     const data = JSON.parse(event.data);
-    console.log("📩 Received WebSocket Message:", data);
 
     if (data.type === "lobbyCreated") {
       console.log("✅ Setting Selected Lobby:", data.lobbyId);
@@ -101,8 +95,6 @@ useEffect(() => {
         console.warn("⚠️ Received a message event with no message data!");
         return;
       }
-    
-      console.log("📨 New Chat Message:", data.message);
     
       setMessages((prevMessages) => [
         ...prevMessages,
@@ -221,8 +213,6 @@ useEffect(() => {
   const sendMessage = () => {
     if (!selectedLobby || chatMessage.trim() === "") return;
 
-    console.log("🔥 Firebase User:", auth.currentUser);
-
     const messageData = {
   type: "sendMessage",
   lobbyId: selectedLobby,
@@ -233,8 +223,6 @@ useEffect(() => {
     profilePic: auth.currentUser?.photoURL || "https://via.placeholder.com/40", // ✅ Include Profile Pic
   },
 };
-  
-    console.log("📤 Sending Message to WebSocket:", messageData); // ✅ Debug outgoing message
   
     ws?.send(JSON.stringify(messageData));
   
@@ -304,16 +292,11 @@ useEffect(() => {
     ws?.send(JSON.stringify(choiceMessage));
   };   
 
-  console.log("📝 Rendering with messages:", messages);
-
   // ✅ Place this function before the return statement
   const renderChatMessage = useCallback(({ item }: { item: ChatMessage }) => {
     // ✅ Explicitly set the bot's profile picture if sender is "Bot 🤖"
     const profilePic =
       item.sender === "Bot 🤖" ? "https://i.imgur.com/RIEHDLC.jpeg" : item.profilePic;
-  
-    console.log("🖼 Rendering Chat Message for:", item.sender);
-    console.log("👤 Profile Pic Used:", profilePic || "❌ No profile pic!");
   
     return (
       <View

@@ -118,30 +118,54 @@ useEffect(() => {
     // ✅ Handle Ephemeral Messages (e.g., "You survived" or "You lost a life!")
     if (data.type === "ephemeralMessage") {
       console.log("👀 Ephemeral Message for Player:", data.message.text);
-      Alert.alert("Game Update", data.message.text); // Show as a popup
-    }
-
-    // ✅ Handle Button Reveal (after choices)
-    if (data.type === "revealButtons") {
-      console.log("🎭 Revealing Buttons:", data.buttons);
+    
       setMessages((prevMessages) => [
         ...prevMessages,
         {
           sender: "Bot 🤖",
-          text: "🔍 The results are in!",
+          text: data.message.text,
           timestamp: new Date().toISOString(),
-          buttons: data.buttons, // ✅ Display buttons in the chat
+          profilePic: "https://i.imgur.com/RIEHDLC.jpeg",
+        },
+      ]);
+    
+      Alert.alert("Game Update", data.message.text);
+    }    
+
+    // ✅ Handle Button Reveal (after choices)
+    if (data.type === "revealButtons") {
+      console.log("🎭 Revealing Buttons:", data.buttons);
+    
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        {
+          sender: "Bot 🤖",
+          text: `🔍 The round is over! Here are the results:`,
+          timestamp: new Date().toISOString(),
+          buttons: data.buttons.map((btn: any) => btn.text),
           profilePic: "https://i.imgur.com/RIEHDLC.jpeg",
         },
       ]);
     }
+    
 
     // ✅ Handle Game Over Message
     if (data.type === "gameOver") {
       console.log("🏆 GAME OVER! Winner:", data.winner);
+    
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        {
+          sender: "Bot 🤖",
+          text: `🏆 The game is over! **${data.winner}** is the champion! 🎉`,
+          timestamp: new Date().toISOString(),
+          profilePic: "https://i.imgur.com/RIEHDLC.jpeg",
+        },
+      ]);
+    
       Alert.alert("Game Over", `${data.winner} has won the game!`);
-      setSelectedLobby(null); // Exit the lobby
-    }
+      setSelectedLobby(null);
+    }    
   };
 
   ws.addEventListener("message", handleMessage);
@@ -281,6 +305,12 @@ useEffect(() => {
   const chooseButton = (buttonIndex: number) => {
     if (!selectedLobby) return;
   
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      console.error("❌ WebSocket not connected! Cannot send choice.");
+      Alert.alert("Error", "WebSocket is not connected. Try again.");
+      return;
+    }
+  
     const choiceMessage = {
       type: "playerChoice",
       lobbyId: selectedLobby,
@@ -289,7 +319,7 @@ useEffect(() => {
     };
   
     console.log("📤 Sending Choice to WebSocket:", choiceMessage);
-    ws?.send(JSON.stringify(choiceMessage));
+    ws.send(JSON.stringify(choiceMessage));
   };   
 
   // ✅ Place this function before the return statement
@@ -330,21 +360,24 @@ useEffect(() => {
           <Text style={styles.chatText}>{item.text}</Text>
   
           {/* ✅ Render Buttons If Available */}
-          {item.buttons && Array.isArray(item.buttons) && (
-            <View style={styles.buttonContainer}>
-              {item.buttons.map((button: string, index: number) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.gameButton}
-                  onPress={() => chooseButton(index)} // Handles button tap
-                >
-                  <Text style={styles.gameButtonText}>{button}</Text>
-                </TouchableOpacity>
-              ))}
+          {item.buttons && Array.isArray(item.buttons) && selectedLobby && (
+  <View style={styles.buttonContainer}>
+    {item.buttons.map((button: string, index: number) => (
+      <TouchableOpacity
+        key={index}
+        style={[
+          styles.gameButton,
+          button === "safe" ? styles.safeButton : styles.trapButton,
+        ]}
+        onPress={() => chooseButton(index)}
+      >
+        <Text style={styles.gameButtonText}>{button}</Text>
+      </TouchableOpacity>
+    ))}
+  </View>
+)}
             </View>
-          )}
         </View>
-      </View>
     );
   }, []);
     
@@ -540,5 +573,13 @@ lobbyPlayerText: {
   fontSize: 16,
   color: COLORS.white,
 },
+
+safeButton: {
+  backgroundColor: "#28a745", // Green for safe button
+},
+trapButton: {
+  backgroundColor: "#dc3545", // Red for trap button
+},
+
 
 });
